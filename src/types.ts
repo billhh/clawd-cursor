@@ -11,7 +11,7 @@ export enum SafetyTier {
 export interface ScreenFrame {
   width: number;
   height: number;
-  buffer: Buffer;       // raw pixel data from VNC
+  buffer: Buffer;
   timestamp: number;
   format: 'png' | 'jpeg' | 'raw';
 }
@@ -20,18 +20,25 @@ export interface MouseAction {
   kind: 'click' | 'double_click' | 'right_click' | 'move' | 'drag' | 'scroll';
   x: number;
   y: number;
-  endX?: number;  // for drag
+  endX?: number;
   endY?: number;
   scrollDelta?: number;
 }
 
 export interface KeyboardAction {
   kind: 'type' | 'key_press';
-  text?: string;       // for type
-  key?: string;        // for key_press (e.g. "Return", "ctrl+c")
+  text?: string;
+  key?: string;
 }
 
 export type InputAction = MouseAction | KeyboardAction;
+
+// A sequence of actions to execute without re-screenshotting
+export interface ActionSequence {
+  kind: 'sequence';
+  steps: Array<InputAction & { description: string }>;
+  description: string;
+}
 
 export interface TaskRequest {
   task: string;
@@ -49,7 +56,7 @@ export interface StepResult {
   action: string;
   description: string;
   success: boolean;
-  screenshot?: string;  // base64
+  screenshot?: string;
   error?: string;
   timestamp: number;
 }
@@ -80,13 +87,13 @@ export interface ClawdConfig {
   };
   safety: {
     defaultTier: SafetyTier;
-    confirmPatterns: string[];  // regex patterns that force confirm
-    blockedPatterns: string[];  // regex patterns that are blocked entirely
+    confirmPatterns: string[];
+    blockedPatterns: string[];
   };
   capture: {
     format: 'png' | 'jpeg';
-    quality: number;           // jpeg quality 1-100
-    maxWidth: number;          // resize for LLM (save tokens)
+    quality: number;
+    maxWidth: number;
   };
 }
 
@@ -113,7 +120,6 @@ export const DEFAULT_CONFIG: ClawdConfig = {
   capture: {
     format: 'jpeg',
     quality: 70,
-    maxWidth: 0,  // 0 = native resolution (no resize)
+    maxWidth: 0,
   },
 };
-

@@ -1,53 +1,69 @@
 /**
  * AI Brain — sends screenshots to a vision LLM and gets back
- * structured actions (click here, type this, press that key).
+ * structured actions. Maintains conversation history so the AI
+ * remembers what it saw and did.
  */
 
-import type { ClawdConfig, InputAction, ScreenFrame, MouseAction, KeyboardAction } from './types';
+import type { ClawdConfig, InputAction, ActionSequence, ScreenFrame } from './types';
 
 const SYSTEM_PROMPT = `You are Clawd Cursor, an AI desktop agent controlling a Windows 11 computer via VNC.
-The screen resolution is {WIDTH}x{HEIGHT}. You can see the screen and execute mouse/keyboard actions.
+Screen resolution: {WIDTH}x{HEIGHT}. You see screenshots and execute mouse/keyboard actions.
 
-IMPORTANT - Windows 11 layout:
-- The taskbar is at the BOTTOM of the screen, centered
-- The Start button (Windows logo) is in the CENTER of the taskbar, NOT bottom-left
-- Taskbar icons are centered by default
-- The system tray (clock, icons) is on the bottom-RIGHT
+WINDOWS 11 LAYOUT:
+- Taskbar at BOTTOM, icons CENTERED (not left-aligned)
+- Start button (Windows logo) is in the CENTER of the taskbar
+- System tray (clock, icons) is bottom-RIGHT
+- Default Chrome has tabs at top, address bar below tabs
 
-When given a task, analyze the screenshot and respond with the NEXT SINGLE ACTION to take.
-Respond with ONLY valid JSON, no other text:
+RESPONSE FORMAT — respond with ONLY valid JSON, no other text:
 
-For mouse actions:
-{"kind": "click", "x": 500, "y": 300, "description": "Click the Chrome icon on taskbar"}
-{"kind": "double_click", "x": 100, "y": 200, "description": "Open the file"}
-{"kind": "right_click", "x": 500, "y": 300, "description": "Open context menu"}
-{"kind": "scroll", "x": 500, "y": 300, "scrollDelta": -3, "description": "Scroll down"}
-
-For keyboard actions:
-{"kind": "type", "text": "hello world", "description": "Type search query"}
-{"kind": "key_press", "key": "Return", "description": "Press Enter to submit"}
-{"kind": "key_press", "key": "ctrl+a", "description": "Select all text"}
+SINGLE ACTION (most cases):
+{"kind": "click", "x": 1280, "y": 1420, "description": "Click Start button in center of taskbar"}
+{"kind": "double_click", "x": 100, "y": 200, "description": "Open file"}
+{"kind": "type", "text": "hello", "description": "Type greeting"}
+{"kind": "key_press", "key": "Return", "description": "Press Enter"}
 {"kind": "key_press", "key": "Super", "description": "Press Windows key"}
+{"kind": "key_press", "key": "ctrl+a", "description": "Select all"}
 
-Special responses:
-{"kind": "done", "description": "Task completed successfully"}
-{"kind": "error", "description": "Cannot proceed because..."}
+SEQUENCE (for predictable multi-step flows like filling forms):
+{"kind": "sequence", "description": "Fill email form", "steps": [
+  {"kind": "click", "x": 800, "y": 400, "description": "Click To field"},
+  {"kind": "type", "text": "user@email.com", "description": "Type recipient"},
+  {"kind": "key_press", "key": "Tab", "description": "Move to subject"},
+  {"kind": "type", "text": "Subject line", "description": "Type subject"},
+  {"kind": "key_press", "key": "Tab", "description": "Move to body"},
+  {"kind": "type", "text": "Message body", "description": "Type message"}
+]}
+
+COMPLETION:
+{"kind": "done", "description": "Task completed — email sent"}
+
+ERROR:
+{"kind": "error", "description": "Cannot proceed because X"}
+
+WAIT (for loading):
 {"kind": "wait", "description": "Waiting for page to load", "waitMs": 2000}
 
-Rules:
-- ONE action per response, ONLY JSON
-- BEFORE acting, check: is the task ALREADY COMPLETE? If yes, respond with {"kind":"done","description":"..."}
-- Use exact pixel coordinates from the screenshot — coordinates correspond to ACTUAL screen pixels
-- Be precise — aim for the CENTER of buttons/links/icons
-- If you already performed the action in previous steps, the task is DONE — do not repeat it
-- If the same action was tried before and didn't work, try a DIFFERENT approach
-- The screenshot is the FULL screen at native resolution`;
+CRITICAL RULES:
+1. BEFORE acting, check: has the task ALREADY BEEN COMPLETED based on previous steps? If yes → done
+2. ONE JSON response only. Use "sequence" for predictable multi-step flows
+3. EXACT pixel coordinates from the screenshot
+4. NEVER repeat an action that was already performed in previous steps
+5. If you typed text and it appeared, that step is DONE — move to the next part of the task
+6. Track progress: if you've done steps A, B, C of a task, do step D next — don't restart
+7. Use sequences for form-filling (To, Subject, Body) to avoid re-screenshotting between each field`;
+
+interface ConversationTurn {
+  role: 'user' | 'assistant';
+  content: any;
+}
 
 export class AIBrain {
   private config: ClawdConfig;
-  private conversationHistory: Array<{ role: string; content: any }> = [];
+  private history: ConversationTurn[] = [];
   private screenWidth: number = 0;
   private screenHeight: number = 0;
+  private maxHistoryTurns = 5; // Keep last 5 exchanges
 
   constructor(config: ClawdConfig) {
     this.config = config;
@@ -58,16 +74,13 @@ export class AIBrain {
     this.screenHeight = height;
   }
 
-  /**
-   * Given a screenshot and task context, decide the next action.
-   * Uses conversation history so AI remembers what it already tried.
-   */
   async decideNextAction(
     screenshot: ScreenFrame,
     task: string,
     previousSteps: string[] = [],
   ): Promise<{
     action: InputAction | null;
+    sequence: ActionSequence | null;
     description: string;
     done: boolean;
     error?: string;
@@ -76,59 +89,115 @@ export class AIBrain {
     const base64Image = screenshot.buffer.toString('base64');
     const mediaType = screenshot.format === 'jpeg' ? 'image/jpeg' : 'image/png';
 
-    // Build the user message with context
-    let userMessage = `Task: ${task}\n`;
+    // Build user message
+    let userMessage = `TASK: ${task}\n`;
     if (previousSteps.length > 0) {
-      const recent = previousSteps.slice(-5); // Only last 5 steps for context
-      userMessage += `\nLast ${recent.length} steps:\n${recent.map((s, i) => `${previousSteps.length - recent.length + i + 1}. ${s}`).join('\n')}\n`;
+      userMessage += `\nCOMPLETED STEPS (${previousSteps.length} so far):\n`;
+      previousSteps.forEach((s, i) => {
+        userMessage += `  ${i + 1}. ✅ ${s}\n`;
+      });
+      userMessage += `\nWhat is the NEXT step? If all steps are done, respond with {"kind":"done",...}`;
+    } else {
+      userMessage += `\nThis is the first step. What should I do first?`;
     }
-    userMessage += `\nWhat is the next action? Respond with ONLY JSON.`;
 
+    // Build the user turn with image
+    const userTurn: ConversationTurn = {
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mediaType,
+            data: base64Image,
+          },
+        },
+        {
+          type: 'text',
+          text: userMessage,
+        },
+      ],
+    };
+
+    // Add to history
+    this.history.push(userTurn);
+
+    // Call the LLM with full conversation history
     const systemPrompt = SYSTEM_PROMPT
       .replace('{WIDTH}', String(this.screenWidth))
       .replace('{HEIGHT}', String(this.screenHeight));
 
-    const response = await this.callVisionLLM(systemPrompt, userMessage, base64Image, mediaType);
+    const response = await this.callLLM(systemPrompt);
 
+    // Add assistant response to history
+    this.history.push({
+      role: 'assistant',
+      content: [{ type: 'text', text: response }],
+    });
+
+    // Trim history to max turns (each turn = user + assistant = 2 entries)
+    while (this.history.length > this.maxHistoryTurns * 2) {
+      this.history.shift();
+      this.history.shift();
+    }
+
+    // Parse response
+    return this.parseResponse(response);
+  }
+
+  private parseResponse(response: string): {
+    action: InputAction | null;
+    sequence: ActionSequence | null;
+    description: string;
+    done: boolean;
+    error?: string;
+    waitMs?: number;
+  } {
     try {
-      const jsonMatch = response.match(/\{[\s\S]*?\}/);
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        return { action: null, description: 'Failed to parse AI response', done: false, error: response };
+        return { action: null, sequence: null, description: 'Failed to parse AI response', done: false, error: response };
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
 
       if (parsed.kind === 'done') {
-        return { action: null, description: parsed.description, done: true };
+        return { action: null, sequence: null, description: parsed.description || 'Task complete', done: true };
       }
 
       if (parsed.kind === 'error') {
-        return { action: null, description: parsed.description, done: false, error: parsed.description };
+        return { action: null, sequence: null, description: parsed.description, done: false, error: parsed.description };
       }
 
       if (parsed.kind === 'wait') {
-        return { action: null, description: parsed.description, done: false, waitMs: parsed.waitMs || 2000 };
+        return { action: null, sequence: null, description: parsed.description, done: false, waitMs: parsed.waitMs || 2000 };
       }
 
+      if (parsed.kind === 'sequence') {
+        const seq: ActionSequence = {
+          kind: 'sequence',
+          steps: parsed.steps || [],
+          description: parsed.description || 'Multi-step sequence',
+        };
+        return { action: null, sequence: seq, description: seq.description, done: false };
+      }
+
+      // Single action
       const action = parsed as InputAction;
-      return { action, description: parsed.description, done: false };
+      return { action, sequence: null, description: parsed.description || 'Action', done: false };
     } catch (err) {
-      return { action: null, description: 'Failed to parse action', done: false, error: String(err) };
+      return { action: null, sequence: null, description: 'Failed to parse action', done: false, error: `Parse error: ${err}\nRaw: ${response.substring(0, 200)}` };
     }
   }
 
-  private async callVisionLLM(
-    systemPrompt: string,
-    userMessage: string,
-    base64Image: string,
-    mediaType: string,
-  ): Promise<string> {
+  private async callLLM(systemPrompt: string): Promise<string> {
     const { provider, apiKey, visionModel } = this.config.ai;
 
     if (provider === 'anthropic') {
-      return this.callAnthropic(systemPrompt, userMessage, base64Image, mediaType, apiKey!, visionModel);
+      return this.callAnthropic(systemPrompt, apiKey!, visionModel);
     } else if (provider === 'openai') {
-      return this.callOpenAI(systemPrompt, userMessage, base64Image, mediaType, apiKey!, visionModel);
+      return this.callOpenAI(systemPrompt, apiKey!, visionModel);
     }
 
     throw new Error(`Unsupported AI provider: ${provider}`);
@@ -136,12 +205,15 @@ export class AIBrain {
 
   private async callAnthropic(
     systemPrompt: string,
-    userMessage: string,
-    base64Image: string,
-    mediaType: string,
     apiKey: string,
     model: string,
   ): Promise<string> {
+    // Convert history for Anthropic format
+    const messages = this.history.map(turn => ({
+      role: turn.role,
+      content: turn.content,
+    }));
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -151,27 +223,9 @@ export class AIBrain {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 512,
+        max_tokens: 1024,
         system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType,
-                  data: base64Image,
-                },
-              },
-              {
-                type: 'text',
-                text: userMessage,
-              },
-            ],
-          },
-        ],
+        messages,
       }),
     });
 
@@ -185,12 +239,38 @@ export class AIBrain {
 
   private async callOpenAI(
     systemPrompt: string,
-    userMessage: string,
-    base64Image: string,
-    mediaType: string,
     apiKey: string,
     model: string,
   ): Promise<string> {
+    // Convert history for OpenAI format
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt },
+    ];
+
+    for (const turn of this.history) {
+      if (turn.role === 'user' && Array.isArray(turn.content)) {
+        const content: any[] = [];
+        for (const part of turn.content) {
+          if (part.type === 'image') {
+            content.push({
+              type: 'image_url',
+              image_url: {
+                url: `data:${part.source.media_type};base64,${part.source.data}`,
+              },
+            });
+          } else {
+            content.push(part);
+          }
+        }
+        messages.push({ role: 'user', content });
+      } else if (turn.role === 'assistant') {
+        const text = Array.isArray(turn.content)
+          ? turn.content.map((c: any) => c.text || '').join('')
+          : turn.content;
+        messages.push({ role: 'assistant', content: text });
+      }
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -199,25 +279,8 @@ export class AIBrain {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 512,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mediaType};base64,${base64Image}`,
-                },
-              },
-              {
-                type: 'text',
-                text: userMessage,
-              },
-            ],
-          },
-        ],
+        max_tokens: 1024,
+        messages,
       }),
     });
 
@@ -226,6 +289,6 @@ export class AIBrain {
   }
 
   resetConversation(): void {
-    this.conversationHistory = [];
+    this.history = [];
   }
 }
