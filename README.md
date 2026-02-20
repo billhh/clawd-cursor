@@ -46,26 +46,142 @@
 └──────────────────────────┘
 ```
 
+## Installation
+
+### Prerequisites
+
+- **Node.js 20+** — [Download here](https://nodejs.org/)
+- **A VNC Server** on your target machine:
+  - Windows: [TightVNC](https://www.tightvnc.com/download.php), [UltraVNC](https://uvnc.com/), or RealVNC
+  - macOS: Built-in Screen Sharing (System Settings → General → Sharing → Screen Sharing)
+  - Linux: `x11vnc`, `tigervnc`, etc.
+- **PowerShell** (Windows) — for accessibility features
+- **AI API Key** — Anthropic, OpenAI, or compatible provider
+
+### Option 1: Clone & Build (Recommended)
+
+```bash
+# Clone the repo
+git clone https://github.com/AmrDab/clawd-cursor.git
+cd clawd-cursor
+
+# Install dependencies
+npm install
+
+# Build TypeScript
+npm run build
+
+# Configure environment
+cp .env.example .env
+# Edit .env and add your AI_API_KEY
+
+# Start the agent
+npm start -- --vnc-host localhost --vnc-port 5900 --vnc-password yourpass
+```
+
+### Option 2: Global Install via NPM (Coming Soon)
+
+```bash
+npm install -g clawd-cursor
+clawd-cursor start --vnc-password yourpass
+```
+
+### Option 3: Docker (Coming Soon)
+
+```bash
+docker run -e AI_API_KEY=sk-... -e VNC_PASSWORD=yourpass ghcr.io/amrdab/clawd-cursor
+```
+
 ## Quick Start
 
 ```bash
-# 1. Install a VNC server (e.g. TightVNC) on your machine
-# 2. Start VNC server with a password
+# 1. Start your VNC server with a password
+# TightVNC example: Set password when prompted on first launch
 
-# 3. Run Clawd Cursor
-pnpm install
-pnpm build
-pnpm start --host localhost --port 5900 --password yourpass
+# 2. Run Clawd Cursor
+npm start -- --vnc-host localhost --vnc-port 5900 --vnc-password yourpass
 
-# 4. Give it a task
+# 3. Send a task via curl
 curl http://localhost:3847/task -d '{"task": "Open Chrome and go to github.com"}'
+
+# Or use the CLI
+npm run task -- "Open Notepad and type hello world"
 ```
+
+## Configuration
+
+### Environment Variables (`.env` file)
+
+```env
+# Required: AI Provider API Key
+AI_API_KEY=sk-ant-api03-...
+# Or specific provider keys:
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+
+# Optional: VNC settings (can also use CLI flags)
+VNC_HOST=localhost
+VNC_PORT=5900
+VNC_PASSWORD=yourpass
+
+# Optional: AI Model selection
+AI_PROVIDER=anthropic  # or openai
+AI_MODEL=claude-opus-4
+```
+
+### CLI Options
+
+```bash
+clawd-cursor start [options]
+
+Options:
+  --vnc-host <host>      VNC server host (default: localhost)
+  --vnc-port <port>      VNC server port (default: 5900)
+  --vnc-password <pass>  VNC server password
+  --port <port>          API server port (default: 3847)
+  --provider <provider>  AI provider: anthropic|openai (default: anthropic)
+  --model <model>        Vision model to use
+  --api-key <key>        AI provider API key
+```
+
+## API Endpoints
+
+Once running, Clawd Cursor exposes a REST API at `http://localhost:3847`:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/task` | POST | Execute a task: `{"task": "Open Chrome"}` |
+| `/status` | GET | Get agent state and current task |
+| `/confirm` | POST | Approve/reject pending action: `{"approved": true}` |
+| `/abort` | POST | Stop the current task |
 
 ## Safety Tiers
 
 - 🟢 **Auto**: Navigation, reading, opening apps
 - 🟡 **Preview**: Typing, form filling — logs before executing
 - 🔴 **Confirm**: Sending messages, deleting, purchases — pauses for approval
+
+## Troubleshooting
+
+### "Failed to connect to VNC server"
+- Ensure VNC server is running on the target machine
+- Check firewall settings (port 5900 needs to be open)
+- Verify password is correct
+- Try connecting with a VNC viewer first to confirm it works
+
+### "PowerShell not available"
+- Windows: Ensure PowerShell is installed and in PATH
+- Some features (accessibility) require PowerShell
+
+### "AI API error"
+- Check your API key is set correctly in `.env` or via `--api-key`
+- Verify the provider is accessible from your network
+- Check token limits and billing status
+
+### Screenshots not working
+- On Windows with multiple monitors, VNC may only capture the primary display
+- Try setting the target window on the primary monitor
+- Check VNC server settings for screen capture options
 
 ## Tech Stack
 
