@@ -121,17 +121,19 @@ export class Agent {
           timestamp: Date.now(),
         });
 
-        // Wait longer after app launches to let them fully load
-        const isLaunch = routeResult.description.toLowerCase().includes('launch') || 
-                         routeResult.description.toLowerCase().includes('opened') ||
-                         routeResult.description.toLowerCase().includes('focused');
-        await this.delay(isLaunch ? 2000 : 500);
+        // Router now handles its own readiness polling for launches.
+        // Small cooldown between subtasks so UI can settle.
+        const isLaunch = routeResult.description.toLowerCase().includes('launch') ||
+                         routeResult.description.toLowerCase().includes('window ready');
+        await this.delay(isLaunch ? 300 : 200);
         continue;
       }
 
       console.log(`   ⚠️ Router couldn't handle: ${routeResult.description}`);
 
       // ─── LLM Vision Fallback ───────────────────────────────────
+      // Brief pause before LLM fallback — let any pending UI transitions settle
+      await this.delay(500);
       console.log(`   🧠 Falling back to LLM vision...`);
       const fallbackResult = await this.executeLLMFallback(subtask, steps, debugDir, i);
       llmCallCount += fallbackResult.llmCalls;
@@ -178,7 +180,7 @@ export class Agent {
 
       // Capture RESIZED screenshot for LLM
       console.log(`   📸 LLM step ${j + 1}: Capturing screen...`);
-      if (j > 0) await this.delay(1000);
+      if (j > 0) await this.delay(1500); // longer pause between LLM retries to let UI settle
 
       const screenshot = await this.vnc.captureForLLM();
       const ext = screenshot.format === 'jpeg' ? 'jpg' : 'png';

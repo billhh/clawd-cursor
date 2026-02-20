@@ -48,6 +48,11 @@ const APP_ALIASES: Record<string, { processNames: string[]; searchTerm: string }
 /** Browser process names for URL navigation */
 const BROWSER_PROCESSES = ['chrome', 'msedge', 'firefox', 'brave', 'opera'];
 
+/** Readiness polling config */
+const READY_POLL_INTERVAL = 300;  // ms between polls
+const READY_TIMEOUT = 8000;       // max ms to wait for app readiness
+const READY_SETTLE_MS = 500;      // extra ms after window appears (let UI render)
+
 export class ActionRouter {
   private a11y: AccessibilityBridge;
   private vnc: VNCClient;
@@ -195,6 +200,12 @@ export class ActionRouter {
   }
 
   private async launchViaStartMenu(searchTerm: string): Promise<RouteResult> {
+    // Snapshot windows BEFORE launch so we can detect the new one
+    let windowsBefore: WindowInfo[] = [];
+    try {
+      windowsBefore = await this.a11y.getWindows(true);
+    } catch { /* proceed without snapshot */ }
+
     try {
       // Press Win key to open Start Menu
       await this.vnc.keyPress('Super');
@@ -206,11 +217,15 @@ export class ActionRouter {
 
       // Press Enter to launch the top result
       await this.vnc.keyPress('Return');
-      await this.delay(1000);
+
+      // Poll until a NEW window appears (or timeout)
+      const readyResult = await this.waitForAppReady(searchTerm, windowsBefore);
 
       return {
         handled: true,
-        description: `Launched "${searchTerm}" via Start Menu search`,
+        description: readyResult
+          ? `Launched "${searchTerm}" — window ready (${readyResult.title})`
+          : `Launched "${searchTerm}" via Start Menu search (readiness timeout — proceeding anyway)`,
       };
     } catch (err) {
       return {
@@ -219,6 +234,56 @@ export class ActionRouter {
         error: String(err),
       };
     }
+  }
+
+  /**
+   * Poll accessibility until a new window matching the app appears.
+   * Returns the matched WindowInfo, or null on timeout.
+   */
+  private async waitForAppReady(
+    searchTerm: string,
+    windowsBefore: WindowInfo[],
+  ): Promise<WindowInfo | null> {
+    const beforeHandles = new Set(windowsBefore.map(w => w.handle));
+    const normalized = searchTerm.toLowerCase();
+    const alias = APP_ALIASES[normalized];
+    const deadline = Date.now() + READY_TIMEOUT;
+
+    console.log(`   ⏳ Waiting for "${searchTerm}" window to appear...`);
+
+    while (Date.now() < deadline) {
+      await this.delay(READY_POLL_INTERVAL);
+
+      try {
+        const currentWindows = await this.a11y.getWindows(true);
+
+        // Look for a NEW window (handle not in beforeHandles) that matches the app
+        for (const w of currentWindows) {
+          if (beforeHandles.has(w.handle)) continue;
+          if (w.isMinimized) continue;
+
+          const matchesProcess = alias
+            ? alias.processNames.some(pn => w.processName.toLowerCase() === pn.toLowerCase())
+            : false;
+          const matchesTitle = w.title.toLowerCase().includes(normalized);
+          const matchesSearch = alias
+            ? w.title.toLowerCase().includes(alias.searchTerm.toLowerCase())
+            : false;
+
+          if (matchesProcess || matchesTitle || matchesSearch) {
+            console.log(`   ✅ Window detected: "${w.title}" (pid:${w.processId}) — settling ${READY_SETTLE_MS}ms`);
+            // Give the window a moment to finish rendering its UI
+            await this.delay(READY_SETTLE_MS);
+            return w;
+          }
+        }
+      } catch {
+        // a11y temporarily unavailable, keep polling
+      }
+    }
+
+    console.log(`   ⚠️ Readiness timeout (${READY_TIMEOUT}ms) — app may still be loading`);
+    return null;
   }
 
   // ─── Handler: Type Text ────────────────────────────────────────────

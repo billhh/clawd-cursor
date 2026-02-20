@@ -5,13 +5,19 @@
  * Flow: Node.js → spawn powershell → .NET UI Automation → JSON back
  * 
  * v2: Added window management helpers (focusWindow, launchApp, getActiveWindow)
+ * v2.1: Fixed hardcoded process IDs, added PowerShell check, proper foreground window detection
  */
 
 import { execFile } from 'child_process';
 import * as path from 'path';
+import { promisify } from 'util';
 
+const execFileAsync = promisify(execFile);
 const SCRIPTS_DIR = path.join(__dirname, '..', 'scripts');
 const PS_TIMEOUT = 10000; // 10s timeout for PowerShell calls
+
+/** Cached PowerShell availability */
+let psAvailable: boolean | null = null;
 
 export interface UIElement {
   name: string;
@@ -40,11 +46,57 @@ interface WindowCache {
 export class AccessibilityBridge {
   private windowCache: WindowCache | null = null;
   private readonly WINDOW_CACHE_TTL = 2000; // 2s cache for window list
+  private explorerProcessId: number | null = null; // Cached Explorer PID for taskbar detection
+
+  /**
+   * Check if PowerShell is available on this system.
+   * Caches result after first check.
+   */
+  async isPowerShellAvailable(): Promise<boolean> {
+    if (psAvailable !== null) return psAvailable;
+    
+    try {
+      await execFileAsync('powershell.exe', ['-Command', 'exit 0'], { timeout: 5000 });
+      psAvailable = true;
+    } catch {
+      psAvailable = false;
+      console.error('❌ PowerShell not available. Accessibility bridge will not function.');
+    }
+    return psAvailable;
+  }
+
+  /**
+   * Get the Explorer process ID (for taskbar detection).
+   * Caches result to avoid repeated lookups.
+   */
+  private async getExplorerProcessId(): Promise<number | null> {
+    if (this.explorerProcessId !== null) return this.explorerProcessId;
+    
+    try {
+      const windows = await this.getWindows(true);
+      const explorer = windows.find(w => w.processName.toLowerCase() === 'explorer');
+      if (explorer) {
+        this.explorerProcessId = explorer.processId;
+        return explorer.processId;
+      }
+    } catch {
+      // Fall through to null
+    }
+    return null;
+  }
 
   /**
    * List all visible top-level windows (cached for 2s)
    */
   async getWindows(forceRefresh = false): Promise<WindowInfo[]> {
+    // Check PowerShell availability on first call
+    if (psAvailable === null) {
+      const available = await this.isPowerShellAvailable();
+      if (!available) {
+        throw new Error('PowerShell is not available. Accessibility features disabled.');
+      }
+    }
+    
     if (
       !forceRefresh &&
       this.windowCache &&
@@ -95,6 +147,7 @@ export class AccessibilityBridge {
   /**
    * Invoke an action on an element (click, set value, etc.)
    * Auto-discovers processId by finding the element first.
+   * Falls back to coordinate click if element has bounds but no processId.
    */
   async invokeElement(opts: {
     name?: string;
@@ -103,8 +156,9 @@ export class AccessibilityBridge {
     action: 'click' | 'set-value' | 'get-value' | 'focus' | 'expand' | 'collapse';
     value?: string;
     processId?: number;
-  }): Promise<{ success: boolean; value?: string; error?: string }> {
+  }): Promise<{ success: boolean; value?: string; error?: string; clickPoint?: { x: number; y: number } }> {
     let processId = opts.processId;
+    let elementBounds: { x: number; y: number; width: number; height: number } | null = null;
 
     // Auto-discover processId if not provided
     if (!processId) {
@@ -121,9 +175,23 @@ export class AccessibilityBridge {
       if (!elements || elements.length === 0) {
         return { success: false, error: `Element not found: ${opts.name || opts.automationId}` };
       }
-      processId = (elements[0] as any).processId;
+      const element = elements[0];
+      processId = (element as any).processId;
+      elementBounds = element.bounds;
+      
+      // Fallback to coordinate click if we have bounds but no processId
+      if (!processId && elementBounds && elementBounds.width > 0 && opts.action === 'click') {
+        const centerX = elementBounds.x + Math.floor(elementBounds.width / 2);
+        const centerY = elementBounds.y + Math.floor(elementBounds.height / 2);
+        console.log(`   ♿ No processId for "${opts.name}", falling back to coordinate click at (${centerX}, ${centerY})`);
+        return { 
+          success: true, 
+          clickPoint: { x: centerX, y: centerY },
+          error: `Coordinate click fallback — caller should execute mouse click at (${centerX}, ${centerY})`
+        };
+      }
+      
       if (!processId) {
-        console.log(`   ♿ No processId for "${opts.name}", falling back to coordinate click`);
         return { success: false, error: `No processId for element: ${opts.name || opts.automationId}` };
       }
     }
@@ -158,24 +226,38 @@ export class AccessibilityBridge {
   }
 
   /**
-   * Get the currently active/focused window.
-   * Checks window list for the one at (0,0) or with focus.
+   * Get the currently active/focused window using Win32 GetForegroundWindow.
+   * Returns the window info for the actual foreground window, not a heuristic guess.
    */
   async getActiveWindow(): Promise<WindowInfo | null> {
     try {
-      const windows = await this.getWindows(true); // force refresh
-      // The focused window is typically not minimized and has the topmost position
-      // We look at the window list — the first non-minimized window is usually focused
-      // but for reliability we use a dedicated approach
-      const nonMinimized = windows.filter(w => !w.isMinimized);
-      if (nonMinimized.length === 0) return null;
+      // Use Win32 API to get actual foreground window
+      const fgResult = await this.runScript('get-foreground-window.ps1');
+      if (!fgResult.success) return null;
 
-      // Sort by z-order approximation: windows with bounds starting at screen origin
-      // are more likely to be maximized/focused. But this is heuristic.
-      // Better: check which window title matches the taskbar's active state
-      return nonMinimized[0] || null;
+      // Get full window list to find matching window with full info
+      const windows = await this.getWindows(true);
+      const match = windows.find(w => w.processId === fgResult.processId);
+      
+      if (match) return match;
+      
+      // Window might be new — construct minimal info from foreground result
+      return {
+        handle: fgResult.handle,
+        title: fgResult.title,
+        processName: fgResult.processName,
+        processId: fgResult.processId,
+        bounds: { x: 0, y: 0, width: 0, height: 0 }, // Unknown without full query
+        isMinimized: false, // Foreground window can't be minimized
+      };
     } catch {
-      return null;
+      // Fallback: return first non-minimized window (better than nothing)
+      try {
+        const windows = await this.getWindows(true);
+        return windows.find(w => !w.isMinimized) || null;
+      } catch {
+        return null;
+      }
     }
   }
 
@@ -218,14 +300,19 @@ export class AccessibilityBridge {
 
       // Always include taskbar buttons (useful for launching/switching apps)
       try {
-        const taskbarButtons = await this.findElement({ controlType: 'Button' });
-        const tbButtons = taskbarButtons.filter((b: any) =>
-          b.processId === 6664 && b.className?.includes('Taskbar')
-        );
-        if (tbButtons.length > 0) {
-          context += `\nTASKBAR APPS:\n`;
-          for (const b of tbButtons) {
-            context += `  📌 "${b.name}" id:${(b as any).automationId} at (${b.bounds.x},${b.bounds.y})\n`;
+        const explorerPid = await this.getExplorerProcessId();
+        if (explorerPid) {
+          const taskbarButtons = await this.findElement({ controlType: 'Button' });
+          // Filter for taskbar buttons: owned by Explorer + has Taskbar in class name
+          const tbButtons = taskbarButtons.filter((b: any) =>
+            b.processId === explorerPid && 
+            (b.className?.includes('Taskbar') || b.className?.includes('MSTaskList'))
+          );
+          if (tbButtons.length > 0) {
+            context += `\nTASKBAR APPS:\n`;
+            for (const b of tbButtons) {
+              context += `  📌 "${b.name}" at (${b.bounds.x},${b.bounds.y})\n`;
+            }
           }
         }
       } catch { /* taskbar query failed, skip */ }

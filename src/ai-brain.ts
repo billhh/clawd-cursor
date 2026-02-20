@@ -72,17 +72,23 @@ Rules:
 - Each sub-task should be ONE simple action (open app, type text, click button, etc.)
 - Use natural language: "open Paint", "type hello world", "click File menu", "save the file"
 - Common patterns: "open [app]", "type [text]", "click [element]", "go to [url]", "press [key]"
-- Keep it minimal — don't add unnecessary steps
+- Keep it minimal — but don't skip steps needed to make the app ready for input
+- Think about what state the app needs to be in BEFORE each action can succeed
+- If typing into a drawing/canvas app, you must select the text tool and click the canvas first
+- If an app has modes or tools (Paint, Photoshop, etc.), include the tool selection step
 
 Examples:
 Task: "Open Paint and type hello world"
-["open Paint", "type hello world"]
+["open Paint", "click the Text tool (A) in the toolbar", "click on the canvas", "type hello world"]
 
 Task: "Open Chrome, go to github.com, and search for clawd-cursor"
 ["open Chrome", "go to github.com", "click the search box", "type clawd-cursor", "press enter"]
 
 Task: "Save the current document as PDF"
 ["click File menu", "click Save As", "select PDF format", "click Save"]
+
+Task: "Open Notepad and type hello"
+["open Notepad", "type hello"]
 
 Task: "Type hello"
 ["type hello"]`;
