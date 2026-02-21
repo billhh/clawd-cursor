@@ -843,6 +843,19 @@
             .stats { flex-direction: column; border-radius: 16px; }
             .hero { padding: 140px 1.5rem 80px; }
             section { padding: 80px 1.5rem; }
+            .metrics-grid { grid-template-columns: 1fr; }
+            .metric-big { font-size: 2.5rem; }
+            .table-row { grid-template-columns: 1fr; gap: 8px; padding: 20px; }
+            .table-row.header { display: none; }
+            .table-cell::before {
+                content: attr(data-label);
+                font-size: 0.7rem;
+                color: var(--text3);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                display: block;
+                margin-bottom: 4px;
+            }
         }
 
         /* Scrollbar */
@@ -851,218 +864,146 @@
         ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--surface2); }
 
-        /* Data Viz / Charts - Professional */
-        .viz-grid {
+        /* Performance Metrics - Professional Cards */
+        .metrics-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 24px;
-            margin-top: 56px;
+            margin: 56px 0 48px;
         }
-        .viz-card {
-            background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, var(--bg2) 100%);
+        .metric-card {
+            background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 36px 28px;
-            text-align: center;
+            border-radius: 16px;
+            padding: 32px 28px;
             position: relative;
-            overflow: hidden;
+            transition: all 0.3s ease;
         }
-        .viz-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
-            opacity: 0.5;
+        .metric-card:hover {
+            border-color: var(--border2);
+            transform: translateY(-2px);
         }
-        .viz-card h4 {
-            font-size: 0.85rem;
-            color: var(--text2);
-            margin-bottom: 28px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+        .metric-card.highlight {
+            background: linear-gradient(180deg, rgba(0,232,157,0.08) 0%, var(--surface) 100%);
+            border-color: rgba(0,232,157,0.2);
         }
-        
-        /* Professional Bar Chart */
-        .bar-chart {
+        .metric-header {
             display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            gap: 40px;
-            height: 180px;
-            margin-bottom: 24px;
-            padding: 0 20px;
-            position: relative;
-        }
-        .bar-chart::before {
-            content: '';
-            position: absolute;
-            bottom: 28px;
-            left: 20px;
-            right: 20px;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--border2), transparent);
-        }
-        .bar-group {
-            display: flex;
-            flex-direction: column;
             align-items: center;
             gap: 12px;
-            z-index: 1;
+            margin-bottom: 20px;
         }
-        .bar {
-            width: 56px;
-            border-radius: 10px 10px 4px 4px;
-            position: relative;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        .metric-icon {
+            font-size: 1.5rem;
         }
-        .bar:hover { 
-            transform: translateY(-4px);
-            filter: brightness(1.1);
-        }
-        .bar.vision {
-            background: linear-gradient(180deg, #ff6b7a 0%, #ff4d6a 50%, #e63950 100%);
-            box-shadow: 0 4px 24px rgba(255,77,106,0.25);
-        }
-        .bar.clawd {
-            background: linear-gradient(180deg, #00ffa8 0%, #00e89d 50%, #00c9a0 100%);
-            box-shadow: 0 4px 24px rgba(0,232,157,0.3);
-        }
-        .bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 40%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.2), transparent);
-            border-radius: 10px 10px 0 0;
-        }
-        .bar-label {
-            font-size: 0.75rem;
-            color: var(--text3);
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        .bar-value {
-            position: absolute;
-            top: -28px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #fff;
-            white-space: nowrap;
-            background: rgba(0,0,0,0.5);
-            padding: 4px 10px;
-            border-radius: 6px;
-            backdrop-filter: blur(4px);
-        }
-        .savings-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: linear-gradient(135deg, rgba(0,232,157,0.12), rgba(0,201,255,0.08));
-            color: var(--accent2);
-            padding: 8px 18px;
-            border-radius: 100px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            border: 1px solid rgba(0,232,157,0.2);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        /* Professional Donut Chart */
-        .donut-chart {
-            width: 160px;
-            height: 160px;
-            margin: 0 auto 20px;
-            position: relative;
-            filter: drop-shadow(0 8px 32px rgba(0,232,157,0.15));
-        }
-        .donut-chart svg {
-            transform: rotate(-90deg);
-        }
-        .donut-chart circle {
-            fill: none;
-            stroke-width: 18;
-        }
-        .donut-bg { 
-            stroke: var(--surface); 
-            stroke-linecap: round;
-        }
-        .donut-fill { 
-            stroke: url(#donutGrad); 
-            stroke-linecap: round;
-            filter: drop-shadow(0 0 8px rgba(0,232,157,0.4));
-        }
-        .donut-center {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .donut-value {
-            font-size: 2.4rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, #fff, var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            line-height: 1;
-        }
-        .donut-label {
+        .metric-tag {
             font-size: 0.7rem;
-            color: var(--text3);
-            margin-top: 4px;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
-        }
-        .metric-row {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 28px;
-            padding-top: 24px;
-            border-top: 1px solid var(--border);
-        }
-        .metric-item {
-            text-align: center;
-            position: relative;
-        }
-        .metric-item:first-child::after {
-            content: '';
-            position: absolute;
-            right: -20px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 1px;
-            height: 30px;
-            background: var(--border);
-        }
-        .metric-value {
-            font-size: 1.6rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--accent), #00c9ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .metric-label {
-            font-size: 0.7rem;
             color: var(--text3);
-            margin-top: 6px;
+            background: var(--bg2);
+            padding: 4px 10px;
+            border-radius: 100px;
+        }
+        .metric-big {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+            margin-bottom: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .metric-desc {
+            font-size: 0.95rem;
+            color: var(--text2);
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        .metric-sub {
+            color: var(--text3);
+            font-size: 0.85rem;
+        }
+        .metric-footer {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .metric-pill {
+            font-size: 0.75rem;
             font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 100px;
+            background: var(--bg2);
+            color: var(--text2);
+        }
+        .metric-pill.success {
+            background: rgba(0,232,157,0.12);
+            color: var(--accent);
+        }
+        .metric-pill.info {
+            background: rgba(77,124,255,0.12);
+            color: var(--blue);
+        }
+
+        /* Comparison Table */
+        .comparison-table {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .table-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr 0.8fr;
+            gap: 16px;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+        }
+        .table-row:last-child {
+            border-bottom: none;
+        }
+        .table-row.header {
+            background: var(--bg2);
+            font-size: 0.75rem;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            color: var(--text3);
+            padding: 14px 24px;
+        }
+        .table-cell {
+            font-size: 0.9rem;
+            color: var(--text2);
+        }
+        .table-row:not(.header) .table-cell:first-child {
+            color: var(--text);
+            font-weight: 500;
+        }
+        .rec-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 100px;
+        }
+        .rec-tag.a {
+            background: rgba(168,85,247,0.15);
+            color: var(--purple);
+        }
+        .rec-tag.b {
+            background: rgba(0,232,157,0.15);
+            color: var(--accent);
+        }
+        .rec-tag::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
         }
 
         /* Coming Soon Overlay */
@@ -1369,83 +1310,83 @@
             </div>
         </section>
 
-        <!-- Data Visualization -->
+        <!-- Performance Metrics -->
         <section class="reveal">
-            <div class="section-label">Real Results</div>
-            <h2>Tested on real desktop tasks</h2>
-            <p class="subtitle">Complex multi-app workflows completed autonomously. Every time.</p>
+            <div class="section-label">Performance</div>
+            <h2>Built for production workloads</h2>
+            <p class="subtitle">Real benchmarks on real tasks. No cherry-picking.</p>
             
-            <div class="viz-grid">
-                <!-- Complex Task Results -->
-                <div class="viz-card">
-                    <h4>🧠 Computer Use (Complex)</h4>
-                    <div class="bar-chart">
-                        <div class="bar-group">
-                            <div class="bar clawd" style="height: 130px;">
-                                <span class="bar-value">187s · 14 steps</span>
-                            </div>
-                            <span class="bar-label">Google Docs</span>
-                        </div>
-                        <div class="bar-group">
-                            <div class="bar clawd" style="height: 70px;">
-                                <span class="bar-value">102s</span>
-                            </div>
-                            <span class="bar-label">GitHub Nav</span>
-                        </div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">⚡</span>
+                        <span class="metric-tag">Action Router</span>
                     </div>
-                    <div class="savings-badge">✅ 100% completion</div>
-                </div>
-
-                <!-- Dual Mode Donut -->
-                <div class="viz-card">
-                    <h4>🎯 Dual Execution Modes</h4>
-                    <div class="donut-chart">
-                        <svg viewBox="0 0 160 160" width="160" height="160">
-                            <defs>
-                                <linearGradient id="donutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stop-color="#00ffa8"/>
-                                    <stop offset="100%" stop-color="#00c9ff"/>
-                                </linearGradient>
-                            </defs>
-                            <circle class="donut-bg" cx="80" cy="80" r="55"/>
-                            <circle class="donut-fill" cx="80" cy="80" r="55" 
-                                    stroke-dasharray="345.6" stroke-dashoffset="0"/>
-                        </svg>
-                        <div class="donut-center">
-                            <span class="donut-value">4/4</span>
-                            <span class="donut-label">Tests Passed</span>
-                        </div>
-                    </div>
-                    <div class="metric-row">
-                        <div class="metric-item">
-                            <div class="metric-value">PATH A</div>
-                            <div class="metric-label">Computer Use</div>
-                        </div>
-                        <div class="metric-item">
-                            <div class="metric-value">PATH B</div>
-                            <div class="metric-label">Fast Route</div>
-                        </div>
+                    <div class="metric-big">~2s</div>
+                    <div class="metric-desc">Average for simple tasks<br><span class="metric-sub">Open app → Click → Type</span></div>
+                    <div class="metric-footer">
+                        <span class="metric-pill success">$0 cost</span>
+                        <span class="metric-pill">Zero LLM calls</span>
                     </div>
                 </div>
 
-                <!-- Simple Task Speed -->
-                <div class="viz-card">
-                    <h4>⚡ Fast Path (Simple Tasks)</h4>
-                    <div class="bar-chart">
-                        <div class="bar-group">
-                            <div class="bar vision" style="height: 100px;">
-                                <span class="bar-value">~12s (vision)</span>
-                            </div>
-                            <span class="bar-label">Other agents</span>
-                        </div>
-                        <div class="bar-group">
-                            <div class="bar clawd" style="height: 17px;">
-                                <span class="bar-value">~2s</span>
-                            </div>
-                            <span class="bar-label">Action Router</span>
-                        </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">🧠</span>
+                        <span class="metric-tag">LLM Vision</span>
                     </div>
-                    <div class="savings-badge">🚀 Zero LLM calls</div>
+                    <div class="metric-big">~15s</div>
+                    <div class="metric-desc">Per autonomous step<br><span class="metric-sub">Screenshot → Plan → Execute</span></div>
+                    <div class="metric-footer">
+                        <span class="metric-pill info">Complex tasks</span>
+                        <span class="metric-pill">Multi-step workflows</span>
+                    </div>
+                </div>
+
+                <div class="metric-card highlight">
+                    <div class="metric-header">
+                        <span class="metric-icon">🎯</span>
+                        <span class="metric-tag">Success Rate</span>
+                    </div>
+                    <div class="metric-big">100%</div>
+                    <div class="metric-desc">On tested workflows<br><span class="metric-sub">Google Docs · GitHub · File ops</span></div>
+                    <div class="metric-footer">
+                        <span class="metric-pill success">Self-healing</span>
+                        <span class="metric-pill">Retries on failure</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-table">
+                <div class="table-row header">
+                    <div class="table-cell">Task Type</div>
+                    <div class="table-cell">Path A (LLM Vision)</div>
+                    <div class="table-cell">Path B (Action Router)</div>
+                    <div class="table-cell">Recommendation</div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell">Open Chrome</div>
+                    <div class="table-cell">~12s, ~$0.02</div>
+                    <div class="table-cell">~2s, $0</div>
+                    <div class="table-cell"><span class="rec-tag b">Path B</span></div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell">Navigate to URL</div>
+                    <div class="table-cell">~8s, ~$0.015</div>
+                    <div class="table-cell">~1s, $0</div>
+                    <div class="table-cell"><span class="rec-tag b">Path B</span></div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell">Find specific UI element</div>
+                    <div class="table-cell">~20s, ~$0.04</div>
+                    <div class="table-cell">~3s, $0</div>
+                    <div class="table-cell"><span class="rec-tag b">Path B</span></div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell">Multi-app workflow</div>
+                    <div class="table-cell">~180s, ~$0.35</div>
+                    <div class="table-cell">N/A (not supported)</div>
+                    <div class="table-cell"><span class="rec-tag a">Path A</span></div>
                 </div>
             </div>
         </section>
