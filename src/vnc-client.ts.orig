@@ -56,9 +56,6 @@ export class VNCClient extends EventEmitter {
   /** Scale factor: LLM coordinates × scaleFactor = real screen coordinates */
   private scaleFactor = 1;
 
-  /** Track whether we've received rect updates since last request */
-  private pendingRectReceived = false;
-
   constructor(config: ClawdConfig) {
     super();
     this.config = config;
@@ -108,7 +105,6 @@ export class VNCClient extends EventEmitter {
 
       // Continuously update the frame buffer
       this.client.on('rect', (rect: any) => {
-        this.pendingRectReceived = true;
         if (this.fullFrameBuffer && rect.data) {
           for (let y = 0; y < rect.height; y++) {
             const srcOffset = y * rect.width * 4;
@@ -124,28 +120,6 @@ export class VNCClient extends EventEmitter {
   }
 
   /**
-   * ── Perf Opt #4: Adaptive frame wait ──
-   * Instead of fixed 800ms delay, poll for rect receipt with 50ms intervals.
-   * Falls back to maxWaitMs if no rects arrive (e.g., static screen).
-   */
-  private async waitForFrameUpdate(maxWaitMs = 800): Promise<void> {
-    this.pendingRectReceived = false;
-    const start = Date.now();
-    const minWaitMs = 100; // Always wait at least 100ms for rects to batch
-
-    await this.delay(minWaitMs);
-
-    while (!this.pendingRectReceived && Date.now() - start < maxWaitMs) {
-      await this.delay(50);
-    }
-
-    if (this.pendingRectReceived) {
-      // Got rect — wait a tiny bit more for any trailing rects
-      await this.delay(50);
-    }
-  }
-
-  /**
    * Capture a full-resolution screenshot (for debug / non-LLM use).
    */
   async captureScreen(): Promise<ScreenFrame> {
@@ -156,8 +130,8 @@ export class VNCClient extends EventEmitter {
     // Request full screen update (non-incremental)
     this.client.requestUpdate(false, 0, 0, this.screenWidth, this.screenHeight);
 
-    // ── Perf Opt #4: Adaptive wait instead of fixed 800ms ──
-    await this.waitForFrameUpdate();
+    // Wait for rects to arrive
+    await this.delay(800);
 
     const processed = await this.processFrame(this.screenWidth, this.screenHeight);
 
@@ -183,7 +157,7 @@ export class VNCClient extends EventEmitter {
 
     // Request full screen update
     this.client.requestUpdate(false, 0, 0, this.screenWidth, this.screenHeight);
-    await this.waitForFrameUpdate();
+    await this.delay(800);
 
     const llmWidth = Math.min(this.screenWidth, LLM_TARGET_WIDTH);
     const llmHeight = Math.round(this.screenHeight / this.scaleFactor);

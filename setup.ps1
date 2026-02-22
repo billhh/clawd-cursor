@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Clawd Cursor setup script for Windows — installs TightVNC + dependencies
 .DESCRIPTION
@@ -60,6 +60,19 @@ if ($tightVncService -or (Test-Path "$tightVncPath\tvnserver.exe")) {
     Write-Host "    ✅ TightVNC already installed" -ForegroundColor Green
     $vncInstalled = $true
 } elseif (-not $SkipVnc) {
+    # Check if running as Administrator for TightVNC installation
+    $isAdminForVnc = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    
+    if (-not $isAdminForVnc) {
+        Write-Host "    ⚠️  Administrator privileges required to install TightVNC." -ForegroundColor Yellow
+        Write-Host "" -ForegroundColor White
+        Write-Host "    To install TightVNC manually, run this command as Administrator:" -ForegroundColor White
+        Write-Host "" -ForegroundColor Gray
+        Write-Host "    msiexec /i https://www.tightvnc.com/download/2.8.85/tightvnc-2.8.85-gpl-setup-64bit.msi /quiet /norestart ADDLOCAL=Server SERVER_REGISTER_AS_SERVICE=1 SERVER_ADD_FIREWALL_EXCEPTION=1 SET_USEVNCAUTHENTICATION=1 VALUE_OF_USEVNCAUTHENTICATION=1 SET_PASSWORD=1 VALUE_OF_PASSWORD=YOUR_PASSWORD" -ForegroundColor Cyan
+        Write-Host "" -ForegroundColor Gray
+        Write-Host "    Continuing with the rest of setup..." -ForegroundColor Gray
+        Write-Host ""
+    } else {
     Write-Host "    📥 Downloading TightVNC..." -ForegroundColor Yellow
     
     $tightVncUrl = "https://www.tightvnc.com/download/2.8.85/tightvnc-2.8.85-gpl-setup-64bit.msi"
@@ -121,6 +134,7 @@ if ($tightVncService -or (Test-Path "$tightVncPath\tvnserver.exe")) {
         Write-Host "    ⚠️  Download failed: $($_.Exception.Message)" -ForegroundColor Yellow
         Write-Host "    Install TightVNC manually: https://www.tightvnc.com/download.php" -ForegroundColor Gray
     }
+    }  # Close admin check block
 } else {
     Write-Host "    ⏭️  Skipped (--SkipVnc)" -ForegroundColor Gray
 }

@@ -9,7 +9,6 @@
  * - System prompt updated to tell AI about coordinate scaling
  */
 
-import * as crypto from 'crypto';
 import type { ClawdConfig, InputAction, ActionSequence, ScreenFrame } from './types';
 
 const SYSTEM_PROMPT = `You are Clawd Cursor, an AI desktop agent controlling a Windows 11 computer via VNC.
@@ -138,17 +137,6 @@ export class AIBrain {
   private screenHeight: number = 0;
   private maxHistoryTurns = 5;
 
-  // ── Screenshot hash cache (Perf Opt #1) ──
-  private lastScreenshotHash: string = '';
-  private lastDecisionCache: {
-    action: InputAction | null;
-    sequence: ActionSequence | null;
-    description: string;
-    done: boolean;
-    error?: string;
-    waitMs?: number;
-  } | null = null;
-
   constructor(config: ClawdConfig) {
     this.config = config;
   }
@@ -199,22 +187,6 @@ export class AIBrain {
     error?: string;
     waitMs?: number;
   }> {
-    // ── Perf Opt #1: Skip LLM call if screenshot unchanged ──
-    // Sample 1KB evenly spaced from buffer for fast comparison (cheaper than full MD5)
-    const sampleSize = Math.min(1024, screenshot.buffer.length);
-    const step = Math.max(1, Math.floor(screenshot.buffer.length / sampleSize));
-    const sample = Buffer.alloc(sampleSize);
-    for (let i = 0; i < sampleSize; i++) {
-      sample[i] = screenshot.buffer[i * step];
-    }
-    const hash = crypto.createHash('md5').update(sample).digest('hex');
-
-    if (hash === this.lastScreenshotHash && this.lastDecisionCache && !this.lastDecisionCache.done) {
-      console.log('   ⚡ Screenshot unchanged — using cached LLM decision');
-      return this.lastDecisionCache;
-    }
-    this.lastScreenshotHash = hash;
-
     const base64Image = screenshot.buffer.toString('base64');
     const mediaType = screenshot.format === 'jpeg' ? 'image/jpeg' : 'image/png';
 
@@ -284,9 +256,7 @@ export class AIBrain {
     }
 
     // Parse and scale coordinates back to real screen space
-    const result = this.parseResponse(response, scale);
-    this.lastDecisionCache = result; // Cache for screenshot dedup
-    return result;
+    return this.parseResponse(response, scale);
   }
 
   private parseResponse(response: string, scaleFactor: number = 1): {
@@ -395,8 +365,8 @@ export class AIBrain {
         } catch (err) {
           console.warn(`   ⚠️ LLM text call attempt ${attempt + 1} failed: ${err}`);
           if (attempt < MAX_RETRIES) {
-            const backoff = Math.min(1000 * Math.pow(2, attempt), 8000) + Math.random() * 1000;
-            console.log(`   ⏳ Retrying in ${Math.round(backoff)}ms...`);
+            const backoff = 1000 * (attempt + 1);
+            console.log(`   ⏳ Retrying in ${backoff}ms...`);
             await new Promise(r => setTimeout(r, backoff));
           } else {
             throw err;
@@ -513,7 +483,5 @@ export class AIBrain {
 
   resetConversation(): void {
     this.history = [];
-    this.lastScreenshotHash = '';
-    this.lastDecisionCache = null;
   }
 }

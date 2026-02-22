@@ -67,20 +67,10 @@ interface WindowCache {
   timestamp: number;
 }
 
-/** Cached screen context with TTL */
-interface ScreenContextCache {
-  context: string;
-  timestamp: number;
-}
-
 export class AccessibilityBridge {
   private windowCache: WindowCache | null = null;
   private readonly WINDOW_CACHE_TTL = 2000; // 2s cache for window list
   private explorerProcessId: number | null = null; // Cached Explorer PID for taskbar detection
-
-  // ── Perf Opt #3: Screen context cache (500ms TTL) ──
-  private screenContextCache: ScreenContextCache | null = null;
-  private readonly SCREEN_CONTEXT_CACHE_TTL = 500;
 
   /**
    * Check if the platform's script shell is available.
@@ -160,7 +150,6 @@ export class AccessibilityBridge {
    */
   invalidateCache(): void {
     this.windowCache = null;
-    this.screenContextCache = null;
   }
 
   /**
@@ -335,15 +324,6 @@ export class AccessibilityBridge {
    * Optionally includes focused window UI tree.
    */
   async getScreenContext(focusedProcessId?: number): Promise<string> {
-    // ── Perf Opt #3: Return cached context if fresh ──
-    if (
-      !focusedProcessId &&
-      this.screenContextCache &&
-      Date.now() - this.screenContextCache.timestamp < this.SCREEN_CONTEXT_CACHE_TTL
-    ) {
-      return this.screenContextCache.context;
-    }
-
     try {
       const windows = await this.getWindows();
       let context = `WINDOWS:\n`;
@@ -381,10 +361,6 @@ export class AccessibilityBridge {
         } catch { /* tree query failed, skip */ }
       }
 
-      // Cache the result
-      if (!focusedProcessId) {
-        this.screenContextCache = { context, timestamp: Date.now() };
-      }
       return context;
     } catch (err) {
       return `(Accessibility unavailable: ${err})`;

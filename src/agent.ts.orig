@@ -17,7 +17,6 @@
  */
 
 import * as fs from 'fs';
-import { writeFile } from 'fs/promises';
 import * as path from 'path';
 import { VNCClient } from './vnc-client';
 import { AIBrain } from './ai-brain';
@@ -295,22 +294,25 @@ export class Agent {
     for (let j = 0; j < MAX_LLM_FALLBACK_STEPS; j++) {
       if (this.aborted) break;
 
-      // ── Perf Opt #2: Parallelize screenshot + a11y fetch ──
-      console.log(`   📸 LLM step ${j + 1}: Capturing screen + a11y context...`);
+      // Capture RESIZED screenshot for LLM
+      console.log(`   📸 LLM step ${j + 1}: Capturing screen...`);
       if (j > 0) await this.delay(1500); // longer pause between LLM retries to let UI settle
 
-      const [screenshot, a11yContext] = await Promise.all([
-        this.vnc.captureForLLM(),
-        this.a11y.getScreenContext().catch(() => undefined as string | undefined),
-      ]);
-
-      // ── Perf Opt #5: Async debug file write (non-blocking) ──
+      const screenshot = await this.vnc.captureForLLM();
       const ext = screenshot.format === 'jpeg' ? 'jpg' : 'png';
-      writeFile(
+      fs.writeFileSync(
         path.join(debugDir, `subtask-${subtaskIndex}-step-${j}.${ext}`),
         screenshot.buffer,
-      ).catch(() => {});
-      console.log(`   💾 Debug screenshot queued (${(screenshot.buffer.length / 1024).toFixed(0)}KB, ${screenshot.llmWidth}x${screenshot.llmHeight})`);
+      );
+      console.log(`   💾 Saved debug screenshot (${(screenshot.buffer.length / 1024).toFixed(0)}KB, ${screenshot.llmWidth}x${screenshot.llmHeight})`);
+
+      // Get accessibility context (best effort)
+      let a11yContext: string | undefined;
+      try {
+        a11yContext = await this.a11y.getScreenContext();
+      } catch {
+        // Accessibility not available
+      }
 
       // Ask AI what to do
       this.state.status = 'thinking';
