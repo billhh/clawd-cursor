@@ -564,12 +564,127 @@
             .sect { padding: 36px 0; }
         }
 
+        /* AI Cursor animation */
+        .ai-cursor-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+        .ai-cursor {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            opacity: 0;
+            filter: drop-shadow(0 0 10px var(--accent));
+            animation: aiPath 18s ease-in-out infinite;
+        }
+        .ai-cursor svg { width: 100%; height: 100%; }
+        .ai-trail {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            opacity: 0;
+            filter: blur(3px);
+            animation: aiTrail 18s ease-in-out infinite;
+        }
+        .ai-trail:nth-child(2) { animation-delay: -0.15s; width: 5px; height: 5px; }
+        .ai-trail:nth-child(3) { animation-delay: -0.3s; width: 4px; height: 4px; }
+        .ai-trail:nth-child(4) { animation-delay: -0.45s; width: 3px; height: 3px; }
+        .ai-ripple {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            opacity: 0;
+            animation: aiRipple 18s ease-in-out infinite;
+        }
+
+        @keyframes aiPath {
+            0%   { left: -5%; top: 20%; opacity: 0; transform: rotate(0deg); }
+            3%   { opacity: 0.8; }
+            8%   { left: 15%; top: 15%; transform: rotate(-5deg); }
+            15%  { left: 35%; top: 25%; transform: rotate(10deg); }
+            22%  { left: 50%; top: 12%; transform: rotate(-3deg); }
+            30%  { left: 65%; top: 30%; transform: rotate(8deg); }
+            38%  { left: 80%; top: 18%; transform: rotate(-5deg); }
+            45%  { left: 70%; top: 45%; transform: rotate(12deg); }
+            52%  { left: 45%; top: 55%; transform: rotate(-8deg); }
+            60%  { left: 25%; top: 48%; transform: rotate(5deg); }
+            68%  { left: 40%; top: 65%; transform: rotate(-10deg); }
+            75%  { left: 60%; top: 58%; transform: rotate(6deg); }
+            82%  { left: 75%; top: 70%; transform: rotate(-4deg); }
+            90%  { left: 90%; top: 55%; transform: rotate(8deg); }
+            95%  { opacity: 0.8; }
+            98%  { left: 105%; top: 40%; opacity: 0; }
+            100% { left: -5%; top: 20%; opacity: 0; }
+        }
+        @keyframes aiTrail {
+            0%   { left: -5%; top: 20%; opacity: 0; }
+            3%   { opacity: 0.35; }
+            8%   { left: 15%; top: 15%; }
+            15%  { left: 35%; top: 25%; }
+            22%  { left: 50%; top: 12%; }
+            30%  { left: 65%; top: 30%; }
+            38%  { left: 80%; top: 18%; }
+            45%  { left: 70%; top: 45%; }
+            52%  { left: 45%; top: 55%; }
+            60%  { left: 25%; top: 48%; }
+            68%  { left: 40%; top: 65%; }
+            75%  { left: 60%; top: 58%; }
+            82%  { left: 75%; top: 70%; }
+            90%  { left: 90%; top: 55%; }
+            95%  { opacity: 0.2; }
+            98%  { left: 105%; top: 40%; opacity: 0; }
+            100% { left: -5%; top: 20%; opacity: 0; }
+        }
+        @keyframes aiRipple {
+            0%,14%,16%,29%,31%,44%,46%,59%,61%,74%,76%,89%,91%,100% { opacity: 0; transform: scale(0.5); }
+            15% { left: 35%; top: 25%; opacity: 0.7; transform: scale(0.5); }
+            15.5% { opacity: 0; transform: scale(2); }
+            30% { left: 65%; top: 30%; opacity: 0.7; transform: scale(0.5); }
+            30.5% { opacity: 0; transform: scale(2); }
+            45% { left: 70%; top: 45%; opacity: 0.7; transform: scale(0.5); }
+            45.5% { opacity: 0; transform: scale(2); }
+            60% { left: 25%; top: 48%; opacity: 0.7; transform: scale(0.5); }
+            60.5% { opacity: 0; transform: scale(2); }
+            75% { left: 60%; top: 58%; opacity: 0.7; transform: scale(0.5); }
+            75.5% { opacity: 0; transform: scale(2); }
+            90% { left: 90%; top: 55%; opacity: 0.7; transform: scale(0.5); }
+            90.5% { opacity: 0; transform: scale(2); }
+        }
+
+        @media (max-width: 768px) {
+            .ai-cursor-container { display: none; }
+        }
+
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 3px; }
     </style>
 </head>
 <body>
+    <!-- AI Cursor -->
+    <div class="ai-cursor-container">
+        <div class="ai-cursor">
+            <svg viewBox="0 0 32 32" fill="none">
+                <path d="M4 4L14 28L17 18L28 14L4 4Z" fill="url(#cg)" stroke="#22c55e" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M20 8L26 2" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+                <path d="M22 12L30 6" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+                <path d="M18 6L22 0" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                <defs><linearGradient id="cg" x1="4" y1="4" x2="28" y2="28"><stop stop-color="#22c55e"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+            </svg>
+        </div>
+        <div class="ai-trail"></div>
+        <div class="ai-trail"></div>
+        <div class="ai-trail"></div>
+        <div class="ai-ripple"></div>
+    </div>
+
     <nav>
         <div class="nav-inner">
             <a href="/" class="logo">
