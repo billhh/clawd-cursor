@@ -1,166 +1,108 @@
+---
+name: clawd-cursor
+description: >
+  AI desktop agent that controls Windows/Mac via VNC. Gives your agent eyes and full cursor control —
+  screen capture, mouse clicks, keyboard input, drag operations, and GUI automation.
+  Use when the user wants desktop automation, VNC-based AI control, or GUI testing.
+  Requires: VNC server with password, AI API key (Anthropic or OpenAI) for vision features.
+  Installs: Node.js dependencies via npm, optionally TightVNC via setup script.
+  Privacy note: screenshots are sent to AI provider APIs (Anthropic/OpenAI) for vision processing.
+---
+
 # Clawd Cursor
 
-AI desktop agent that controls Windows/Mac via VNC. Lets AI see the screen, click, type, and automate any GUI application. Use when user wants to set up or use Clawd Cursor for desktop automation, VNC-based AI control, or GUI testing.
+Desktop automation skill for OpenClaw. Controls any GUI application through VNC.
+
+## Required Credentials
+
+| Variable | Sensitivity | Purpose |
+|----------|------------|---------|
+| `VNC_PASSWORD` | **High** — grants full desktop control | Authenticates to your VNC server |
+| `AI_API_KEY` | **High** — enables external API calls | Anthropic or OpenAI key for vision/planning |
+
+**Privacy:** Screenshots of your desktop are sent to the configured AI provider (Anthropic or OpenAI) for processing. Only use on machines without sensitive data visible, or in a sandbox/VM.
+
+**Optional variables:** `AI_PROVIDER` (anthropic\|openai), `VNC_HOST` (default: localhost), `VNC_PORT` (default: 5900)
 
 ## Installation
 
+Requires **Node.js 20+** and a **VNC server** (TightVNC on Windows, built-in Screen Sharing on macOS).
+
 ```bash
-# Clone the repository
 git clone https://github.com/AmrDab/clawd-cursor.git
 cd clawd-cursor
-
-# Install dependencies
-npm install
-
-# Build TypeScript
-npx tsc
+npm install && npx tsc
 ```
 
 ### Windows One-Command Setup
 
 ```powershell
-git clone https://github.com/AmrDab/clawd-cursor.git
-cd clawd-cursor
 powershell -ExecutionPolicy Bypass -File setup.ps1
 ```
 
-The setup script downloads TightVNC, installs dependencies, builds TypeScript, and creates `.env`.
+**What the setup script does:**
+1. Checks Node.js version (requires 20+)
+2. Downloads TightVNC installer from `https://www.tightvnc.com/` (requires admin for install — will prompt if not elevated)
+3. Runs `npm install` and `npx tsc`
+4. Creates `.env` from `.env.example`
+
+Source: [`setup.ps1`](https://github.com/AmrDab/clawd-cursor/blob/main/setup.ps1) — review before running.
 
 ## Configuration
 
-Create a `.env` file in the project root (or copy from `.env.example`):
+Create `.env` in project root:
 
 ```env
-# Required: VNC Server connection
 VNC_PASSWORD=your_vnc_password
-
-# Required for AI features: API key
 AI_API_KEY=sk-ant-api03-...
-
-# Optional: AI Provider (anthropic or openai)
 AI_PROVIDER=anthropic
-
-# Optional: VNC connection settings
 VNC_HOST=localhost
 VNC_PORT=5900
-
-# Optional: Specific provider API keys (override AI_API_KEY)
-# ANTHROPIC_API_KEY=sk-ant-...
-# OPENAI_API_KEY=sk-...
 ```
 
-### Configuration Details
-
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `VNC_PASSWORD` | **Yes** | Password for VNC server | `mysecret123` |
-| `AI_API_KEY` | For AI path | Anthropic or OpenAI API key | `sk-ant-api03-...` |
-| `AI_PROVIDER` | No | Provider: `anthropic` or `openai` | `anthropic` |
-| `VNC_HOST` | No | VNC server hostname | `localhost` |
-| `VNC_PORT` | No | VNC server port | `5900` |
-| `ANTHROPIC_API_KEY` | No | Specific Anthropic key | `sk-ant-...` |
-| `OPENAI_API_KEY` | No | Specific OpenAI key | `sk-...` |
-
-## How to Run
+## Running
 
 ```bash
-# Start the agent with Computer Use (Anthropic - recommended)
+# Computer Use (Anthropic — recommended for complex tasks)
 npm start -- --vnc-password yourpass --provider anthropic
 
-# Or start with Action Router (OpenAI/offline)
+# Action Router (OpenAI/offline — fast for simple tasks)
 npm start -- --vnc-password yourpass --provider openai
-
-# Send a task via API
-curl http://localhost:3847/task -d '{"task": "Open Notepad and type hello world"}'
 ```
 
 ## Execution Paths
 
-Clawd Cursor has two execution paths depending on the provider:
-
 ### Path A: Computer Use API (Anthropic)
+Full task → Claude with native `computer_20250124` tools → screenshots, plans, executes autonomously.
+Best for complex multi-app workflows. ~90-190s. Very reliable.
 
-When `--provider anthropic` is set, the entire task goes directly to Claude with native `computer_20250124` tools. Claude sees the screen, plans multi-step sequences, and executes them natively.
-
-- **Best for:** Complex multi-app workflows
-- **Speed:** ~90-190s for complex tasks
-- **Reliability:** Very high
-- **Requires:** Anthropic API key
-- **Model:** `claude-sonnet-4-20250514`
-
-```
-User: "Open Chrome, go to Google Docs, write a paragraph about dogs"
-
-Claude sees the desktop → plans the sequence → executes step by step
-14 API calls · 187s · All steps verified
-```
-
-### Path B: Decompose + Route + LLM Fallback (OpenAI/Offline)
-
-For other providers, the task is decomposed into subtasks. The Action Router handles simple tasks via Windows UI Automation (zero LLM calls). If the router can't handle a step, it falls back to vision LLM.
-
-- **Best for:** Simple single-action tasks
-- **Speed:** ~2s for simple tasks
-- **Reliability:** Good for supported patterns
-- **Works offline:** Yes (for supported patterns)
-
-```
-User: "Open Notepad"
-
-1. Parse → 1 subtask (text LLM, fast)
-2. Action Router → find Notepad via UI Automation, launch it (no LLM)
-
-Total LLM calls: 1 (just parsing) · ~2s
-```
+### Path B: Decompose + Route (OpenAI/Offline)
+Task → subtasks → UI Automation tree → direct element interaction. Zero LLM for common patterns.
+Best for simple tasks. ~2s. Works offline.
 
 ## Safety Tiers
 
 | Tier | Actions | Behavior |
 |------|---------|----------|
-| 🟢 **Auto** | Navigation, reading, opening apps | Runs immediately |
-| 🟡 **Preview** | Typing, form filling | Logs before executing |
-| 🔴 **Confirm** | Sending messages, deleting, purchases | Pauses for approval |
-
-Safety tier is determined by action classification. Confirm actions require POST to `/confirm {"approved": true}`.
+| 🟢 Auto | Navigation, reading, opening apps | Runs immediately |
+| 🟡 Preview | Typing, form filling | Logs before executing |
+| 🔴 Confirm | Sending messages, deleting, purchases | Pauses for `/confirm` approval |
 
 ## API Endpoints
 
-Base URL: `http://localhost:3847`
+`http://localhost:3847`
 
-| Endpoint | Method | Description | Example Request |
-|----------|--------|-------------|-----------------|
-| `/task` | POST | Execute a task | `{"task": "Open Chrome"}` |
-| `/status` | GET | Get agent state | - |
-| `/confirm` | POST | Approve/reject pending action | `{"approved": true}` |
-| `/abort` | POST | Stop the current task | - |
-| `/health` | GET | Health check | - |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/task` | POST | `{"task": "Open Chrome"}` |
+| `/status` | GET | Agent state |
+| `/confirm` | POST | `{"approved": true}` |
+| `/abort` | POST | Stop current task |
 
-## CLI Options
+## Security Considerations
 
-```
---vnc-host <host>      VNC server host (default: localhost)
---vnc-port <port>      VNC server port (default: 5900)
---vnc-password <pass>  VNC password (required)
---port <port>          API port (default: 3847)
---provider <provider>  anthropic (Computer Use) | openai (Action Router)
---model <model>        Vision model to use
---api-key <key>        AI provider API key
-```
-
-## Prerequisites
-
-- **Node.js 20+**
-- **VNC Server** — TightVNC (Windows), built-in Screen Sharing (macOS), x11vnc/tigervnc (Linux)
-- **PowerShell** (Windows) — for UI Automation features (Path B)
-- **AI API Key** — Anthropic recommended for Computer Use (Path A)
-
-## Troubleshooting
-
-- **VNC connection fails:** Make sure TightVNC server is running and password is correct
-- **npm install fails:** Ensure Node.js 20+ is installed
-- **Build fails:** Run `npx tsc` manually to see errors
-- **AI features not working:** Check that `AI_API_KEY` is set in `.env`
-
-## License
-
-MIT
+- VNC password grants **full GUI control** of the machine — use strong passwords, localhost only
+- AI API keys allow **sending screenshots to external APIs** — use test keys first
+- Run in a **sandbox or VM** when testing with sensitive data
+- The `/confirm` endpoint enforces the 🔴 safety tier — verify it works before trusting autonomous operation
+- Review [`setup.ps1`](https://github.com/AmrDab/clawd-cursor/blob/main/setup.ps1) source before running
