@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name('clawd-cursor')
   .description('🐾 AI Desktop Agent — native screen control')
-  .version('0.3.3');
+  .version('0.4.0');
 
 program
   .command('start')
@@ -46,7 +46,7 @@ program
 
     console.log(`
 🐾 ╔═══════════════════════════════════════╗
-   ║       CLAWD CURSOR v0.3.3             ║
+   ║       CLAWD CURSOR v0.4.0             ║
    ║   AI Desktop Agent — Native Control   ║
    ╚═══════════════════════════════════════╝
 `);
