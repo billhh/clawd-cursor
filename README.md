@@ -5,7 +5,7 @@
 <h1 align="center">Clawd Cursor</h1>
 
 <p align="center">
-  <strong>AI Desktop Agent via VNC — Two Execution Modes</strong><br>
+  <strong>AI Desktop Agent — Native Screen Control</strong><br>
   Native Computer Use for complex tasks · Action Router for instant simple ones
 </p>
 
@@ -15,51 +15,30 @@
 
 ---
 
-## What's New in v0.3.3
+## What's New in v0.4.0
 
-**Bulletproof headless setup** — setup.ps1 now completes end-to-end in a single run on fresh systems, even in non-interactive/headless AI agent shells:
-- Generate random VNC password when `--vnc-password` not provided non-interactively (instead of `exit 1`)
-- Replace `Start-Process -NoNewWindow -Wait` with `-PassThru -WindowStyle Hidden` + try/catch (msiexec crash fix)
-- Wrap `Start-Service` in its own try/catch (post-install crash fix)
-- Replace all emoji (🐾📥📦🔑) with ASCII tags for cp1252 headless terminal compatibility
+**Native desktop control.** Clawd Cursor no longer requires a VNC server. Desktop interaction is handled natively via [@nut-tree-fork/nut-js](https://github.com/nut-tree-fork/nut-js) — direct OS-level screen capture and input.
 
-## v0.3.1
+- **17× faster screenshots** — ~50ms native capture vs ~850ms over VNC
+- **5× faster connect time** — ~38ms vs ~200ms+
+- **Zero server setup** — no TightVNC, no VNC password, just `npm install && npm start`
+- **Simpler onboarding** — three commands to get started
+- **RGBA natively** — no more BGRA→RGBA color swap
 
-**SKILL.md security hardening** — added YAML frontmatter, explicit credential declarations, privacy disclosure, and security considerations for ClaWHub publishing.
+### Performance Comparison
 
-## v0.3.0
-
-**Performance optimizations across the pipeline** — ~70% faster task execution, 90% fewer redundant LLM calls on static screens.
-
-- **Screenshot hash cache** — skips LLM calls when the screen hasn't changed
-- **Adaptive VNC frame wait** — captures in ~200ms instead of fixed 800ms
-- **Parallel screenshot + accessibility fetch** — runs concurrently via Promise.all
-- **Accessibility context cache** — 500ms TTL eliminates redundant PowerShell queries
-- **Async debug writes** — no longer blocks the event loop
-- **Exponential backoff with jitter** — better retry resilience for API calls
-- **Onboarding fixes** — setup.ps1 curly quote bug fixed, admin elevation handled gracefully, SKILL.md added for OpenClaw integration
-
-### v0.2.0
-
-**Anthropic's Computer Use API is now the primary execution path.** The full task goes directly to Claude with native `computer_20250124` tools — no decomposition, no routing. Claude sees the screen, plans multi-step sequences, and executes them natively.
-
-The original Action Router (UI Automation, zero LLM) is still available as a fast, cheap path for simple tasks.
-
-| | Path A: Computer Use | Path B: Action Router |
-|---|---|---|
-| Provider | `--provider anthropic` | `--provider openai` / offline |
-| How it works | Claude sees screenshots, plans, and acts natively | Parse → subtasks → UI Automation → vision fallback |
-| Best for | Complex multi-app workflows | Simple single-action tasks |
-| Speed | ~90–190s (complex tasks) | ~2s (simple tasks) |
-| Reliability | Very high | Good for supported patterns |
-| Cost | Higher (API calls w/ screenshots) | Lower (1 text call or zero) |
-| Offline | No | Yes |
+| Metric | v0.3 (VNC) | v0.4 (Native) |
+|--------|-----------|---------------|
+| Screenshot capture | ~850ms | ~50ms (17× faster) |
+| Connect time | ~200ms+ | ~38ms (5× faster) |
+| Simple task total | ~115–120s | ~101s |
+| Complex task total | ~190–200s | ~156s |
 
 ---
 
 ## What is this?
 
-Your AI connects to your desktop via VNC — like a remote user. Depending on the provider, it either:
+Your AI controls your desktop natively — direct screen capture and OS-level mouse/keyboard input. Depending on the provider, it either:
 
 **Path A — Computer Use API (Anthropic):** Claude receives the full task, takes screenshots of your desktop, and executes actions natively through the `computer_20250124` tool. It plans multi-step sequences, handles errors, and verifies results — all within a single conversation loop.
 
@@ -67,7 +46,7 @@ Your AI connects to your desktop via VNC — like a remote user. Depending on th
 User: "Open Chrome, go to Google Docs, write a paragraph about dogs"
 
   Claude sees the desktop → plans the sequence → executes step by step
-  14 API calls · 187s · All steps verified
+  10 API calls · 101.7s · All steps verified
 ```
 
 **Path B — Decompose + Action Router (OpenAI/Offline):** The original approach. A text-only LLM call breaks the task into subtasks. The Action Router handles each one via Windows UI Automation (no screenshots, no vision). If the router can't handle a step, it falls back to vision.
@@ -92,18 +71,17 @@ npm install && npm run build
 Set up your `.env`:
 ```env
 AI_API_KEY=sk-ant-api03-...
-VNC_PASSWORD=yourpass
 AI_PROVIDER=anthropic
 ```
 
 Run with Computer Use (recommended):
 ```bash
-npm start -- --vnc-password yourpass --provider anthropic
+npm start -- --provider anthropic
 ```
 
 Run with Action Router (fast/offline):
 ```bash
-npm start -- --vnc-password yourpass --provider openai
+npm start -- --provider openai
 ```
 
 Send a task:
@@ -111,25 +89,15 @@ Send a task:
 curl http://localhost:3847/task -d '{"task": "Open Notepad and type hello world"}'
 ```
 
-### Windows One-Command Setup
-
-```powershell
-git clone https://github.com/AmrDab/clawd-cursor.git
-cd clawd-cursor
-powershell -ExecutionPolicy Bypass -File setup.ps1
-```
-
-The setup script downloads TightVNC, installs deps, builds TypeScript, and creates `.env`.
-
 ## How It Works
 
 ### Path A — Computer Use API
 
 When `--provider anthropic` is set, the entire task is sent to Claude along with the `computer_20250124` tool definition. Claude:
 
-1. Takes a screenshot of the desktop
+1. Takes a screenshot of the desktop (native capture, ~50ms)
 2. Plans the next action (click, type, key press, scroll, drag)
-3. Executes via VNC
+3. Executes via native desktop control (@nut-tree-fork/nut-js)
 4. Waits with adaptive delays (1000ms app launch, 800ms navigation, 100ms typing)
 5. Receives verification hint, screenshots again
 6. Repeats until the task is complete
@@ -153,9 +121,10 @@ The original v0.1.0 pipeline:
 
 ```
 ┌──────────────────────────────────────────────────┐
-│               Your Desktop (VNC Server)          │
+│            Your Desktop (Native Control)          │
+│         @nut-tree-fork/nut-js · OS-level          │
 └──────────────────────┬───────────────────────────┘
-                       │ VNC Protocol
+                       │ Native Screen Capture + Input
 ┌──────────────────────┴───────────────────────────┐
 │              Clawd Cursor Agent                   │
 │                                                   │
@@ -178,14 +147,13 @@ The original v0.1.0 pipeline:
 └───────────────────────────────────────────────────┘
 ```
 
-## Test Results (v0.3.0 — Computer Use)
+## Test Results (v0.4.0 — Computer Use)
 
 | Task | Time | API Calls | Result |
 |------|------|-----------|--------|
-| Open Chrome → Google Docs → write a paragraph | 187s | 14 | ✅ |
-| Open Chrome → GitHub profile → screenshot | 102s | — | ✅ |
-| Open Notepad → write haiku → save to desktop | ~180s | — | ✅ |
-| Open Paint → draw stick figure | ~90s | 16 | ✅ |
+| Open Chrome → Google Docs → write sentence | 101.7s | 10 | ✅ |
+| GitHub profile → read repos → Notepad → save file | 156s | 18 | ✅ |
+| Open Paint → draw stick figure | ~45s | N/A (scripted) | ✅ |
 
 ## API Endpoints
 
@@ -200,7 +168,7 @@ The original v0.1.0 pipeline:
 
 ## Manual Setup
 
-If you prefer manual setup over the automated script:
+If you prefer manual setup:
 
 ### 1. Install Dependencies
 
@@ -221,20 +189,15 @@ cp .env.example .env
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `VNC_PASSWORD` | **Yes** | Password for your VNC server | `mysecret123` |
-| `AI_API_KEY` | **Yes** for AI path | Anthropic or OpenAI API key | `sk-ant-api03-...` |
+| `AI_API_KEY` | **Yes** | Anthropic or OpenAI API key | `sk-ant-api03-...` |
 | `AI_PROVIDER` | No | AI provider: `anthropic` or `openai` | `anthropic` |
-| `VNC_HOST` | No | VNC server hostname/IP | `localhost` |
-| `VNC_PORT` | No | VNC server port | `5900` |
 | `ANTHROPIC_API_KEY` | No | Specific Anthropic API key (overrides AI_API_KEY) | `sk-ant-...` |
 | `OPENAI_API_KEY` | No | Specific OpenAI API key (overrides AI_API_KEY) | `sk-...` |
-
-**Note:** At minimum, you need `VNC_PASSWORD` set. For AI-powered desktop automation, also set `AI_API_KEY`.
 
 ### 3. Start the Agent
 
 ```bash
-npm start -- --vnc-password yourpass
+npm start
 ```
 
 ## Configuration
@@ -242,9 +205,6 @@ npm start -- --vnc-password yourpass
 ### CLI Options
 
 ```
---vnc-host <host>      VNC server host (default: localhost)
---vnc-port <port>      VNC server port (default: 5900)
---vnc-password <pass>  VNC password
 --port <port>          API port (default: 3847)
 --provider <provider>  anthropic (Computer Use) | openai (Action Router)
 --model <model>        Vision model
@@ -257,9 +217,6 @@ All CLI options can be set in `.env`:
 
 ```env
 AI_API_KEY=sk-ant-api03-...
-VNC_HOST=localhost
-VNC_PORT=5900
-VNC_PASSWORD=yourpass
 AI_PROVIDER=anthropic
 AI_MODEL=claude-sonnet-4-20250514
 ```
@@ -275,13 +232,12 @@ AI_MODEL=claude-sonnet-4-20250514
 ## Prerequisites
 
 - **Node.js 20+**
-- **VNC Server** — [TightVNC](https://www.tightvnc.com/) (Windows), built-in Screen Sharing (macOS), `x11vnc`/`tigervnc` (Linux)
 - **PowerShell** (Windows) — for UI Automation features (Path B)
 - **AI API Key** — Anthropic recommended for Computer Use (Path A). OpenAI optional for Path B. Works offline for common tasks via Action Router.
 
 ## Tech Stack
 
-TypeScript · Node.js · rfb2 (VNC) · sharp (screenshots) · Express + WebSocket · Anthropic Computer Use API · Windows UI Automation via PowerShell
+TypeScript · Node.js · @nut-tree-fork/nut-js (native desktop control) · sharp (screenshots) · Express + WebSocket · Anthropic Computer Use API · Windows UI Automation via PowerShell
 
 ## ClaWHub
 

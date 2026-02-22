@@ -1,7 +1,7 @@
 {
   "name": "clawd-cursor",
-  "version": "0.3.3",
-  "description": "AI Desktop Agent — your AI controls your desktop natively via screen capture and OS-level input",
+  "version": "0.4.0",
+  "description": "AI Desktop Agent — Native screen control via @nut-tree-fork/nut-js. Your AI sees the screen, moves the mouse, types, and completes tasks autonomously.",
   "main": "dist/index.js",
   "bin": {
     "clawdcursor": "dist/index.js"

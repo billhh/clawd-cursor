@@ -714,9 +714,9 @@
     <div class="wrap">
         <!-- Hero -->
         <div class="hero">
-            <div class="hero-badge"><div class="pulse"></div> v0.3.3 - OpenClaw Skill</div>
+            <div class="hero-badge"><div class="pulse"></div> v0.4.0 - Native Desktop Control</div>
             <h1>One skill replaces<br><span class="gr">a dozen APIs</span></h1>
-            <p>Give your agent a screen. Gmail, Slack, Jira, Figma - if you can click it, your agent can too. No API keys per service. No rate limits. No breaking changes.</p>
+            <p>Give your agent a screen. Gmail, Slack, Jira, Figma — if you can click it, your agent can too. Native desktop control. No servers. No API keys per service.</p>
             <div class="hero-btns">
                 <a href="https://github.com/AmrDab/clawd-cursor" class="btn-p">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -729,10 +729,10 @@
         <!-- Stats -->
         <div class="stats">
             <div class="stat"><div class="stat-val">2</div><div class="stat-lbl">Execution Modes</div></div>
-            <div class="stat"><div class="stat-val">14</div><div class="stat-lbl">Steps Autonomous</div></div>
+            <div class="stat"><div class="stat-val">~50ms</div><div class="stat-lbl">Screenshot Capture</div></div>
             <div class="stat"><div class="stat-val">100%</div><div class="stat-lbl">Task Completion</div></div>
             <div class="stat"><div class="stat-val">~2s</div><div class="stat-lbl">Simple Tasks</div></div>
-            <div class="stat"><div class="stat-val">70%</div><div class="stat-lbl">Faster in v0.3</div></div>
+            <div class="stat"><div class="stat-val">17&times;</div><div class="stat-lbl">Faster Screenshots</div></div>
         </div>
 
         <!-- Why -->
@@ -762,29 +762,29 @@
         <!-- Two modes -->
         <section id="how" class="sect">
             <div class="sect-label">Two Modes</div>
-            <h2>Complex or simple - both covered</h2>
+            <h2>Complex or simple — both covered</h2>
             <p class="sub">Computer Use for bulletproof multi-step workflows. Action Router for instant single actions.</p>
             <div class="modes-grid">
                 <div class="mode-card a">
-                    <h3>Path A - Computer Use</h3>
+                    <h3>Path A — Computer Use</h3>
                     <ol>
                         <li>Full task sent to Claude with native tools</li>
-                        <li>Claude sees your screen via screenshots</li>
+                        <li>Claude sees your screen via native capture</li>
                         <li>Plans and executes step by step</li>
                         <li>Verifies each action before continuing</li>
                         <li>Handles multi-app, unfamiliar UIs</li>
                     </ol>
                     <div class="mode-stats">
                         <div><div class="mode-stat-val">100%</div><div class="mode-stat-lbl">Reliable</div></div>
-                        <div><div class="mode-stat-val">14</div><div class="mode-stat-lbl">Steps auto</div></div>
+                        <div><div class="mode-stat-val">10</div><div class="mode-stat-lbl">Steps auto</div></div>
                     </div>
                 </div>
                 <div class="mode-card b">
-                    <h3>Path B - Action Router</h3>
+                    <h3>Path B — Action Router</h3>
                     <ol>
                         <li>Parse task into subtasks (1 text call)</li>
                         <li>Query UI Automation tree</li>
-                        <li>Find element by name - click directly</li>
+                        <li>Find element by name — click directly</li>
                         <li>Zero LLM for common actions</li>
                         <li>Vision fallback for unfamiliar elements</li>
                     </ol>
@@ -800,19 +800,19 @@
         <section class="sect">
             <div class="sect-label">Performance</div>
             <h2>Real benchmarks, real tasks</h2>
-            <p class="sub">No cherry-picking.</p>
+            <p class="sub">No cherry-picking. v0.4.0 native desktop vs v0.3 VNC.</p>
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-tag">Action Router</div>
                     <div class="metric-big">~2s</div>
-                    <div class="metric-desc">Simple tasks - open, click, type</div>
+                    <div class="metric-desc">Simple tasks — open, click, type</div>
                     <div class="metric-pills"><span class="pill g">$0 cost</span><span class="pill">Zero LLM</span></div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-tag">LLM Vision</div>
-                    <div class="metric-big">~15s</div>
-                    <div class="metric-desc">Per autonomous step</div>
-                    <div class="metric-pills"><span class="pill b">Complex tasks</span><span class="pill">Multi-step</span></div>
+                    <div class="metric-tag">Screenshot</div>
+                    <div class="metric-big">~50ms</div>
+                    <div class="metric-desc">Native capture — 17× faster than VNC</div>
+                    <div class="metric-pills"><span class="pill g">Native</span><span class="pill b">@nut-tree-fork/nut-js</span></div>
                 </div>
                 <div class="metric-card hl">
                     <div class="metric-tag">Success Rate</div>
@@ -823,19 +823,19 @@
             </div>
             <div class="cmp-table">
                 <div class="cmp-row hd">
-                    <div>Task</div><div>Path A (Vision)</div><div>Path B (Router)</div><div>Best</div>
+                    <div>Task</div><div>Time</div><div>API Calls</div><div>Result</div>
                 </div>
                 <div class="cmp-row">
-                    <div>Open Chrome</div><div>~12s, ~$0.02</div><div>~2s, $0</div><div><span class="rec b">B</span></div>
+                    <div>Chrome → Google Docs → write sentence</div><div>101.7s</div><div>10</div><div><span class="rec b">✅</span></div>
                 </div>
                 <div class="cmp-row">
-                    <div>Navigate to URL</div><div>~8s, ~$0.015</div><div>~1s, $0</div><div><span class="rec b">B</span></div>
+                    <div>GitHub → read repos → Notepad → save</div><div>156s</div><div>18</div><div><span class="rec b">✅</span></div>
                 </div>
                 <div class="cmp-row">
-                    <div>Find UI element</div><div>~20s, ~$0.04</div><div>~3s, $0</div><div><span class="rec b">B</span></div>
+                    <div>Open Paint → draw stick figure</div><div>~45s</div><div>scripted</div><div><span class="rec b">✅</span></div>
                 </div>
                 <div class="cmp-row">
-                    <div>Multi-app workflow</div><div>~180s, ~$0.35</div><div>N/A</div><div><span class="rec a">A</span></div>
+                    <div>Open Notepad (Action Router)</div><div>~2s</div><div>$0</div><div><span class="rec b">✅</span></div>
                 </div>
             </div>
         </section>
@@ -848,7 +848,7 @@
                 <div class="feat-card">
                     <div class="feat-icon">&#x1F50D;</div>
                     <h4>UI Automation Tree</h4>
-                    <p>Queries native accessibility APIs to find buttons, menus, inputs by name - not pixel coordinates.</p>
+                    <p>Queries native accessibility APIs to find buttons, menus, inputs by name — not pixel coordinates.</p>
                 </div>
                 <div class="feat-card">
                     <div class="feat-icon">&#x26A1;</div>
@@ -858,12 +858,12 @@
                 <div class="feat-card">
                     <div class="feat-icon">&#x1F9E0;</div>
                     <h4>Native Computer Use</h4>
-                    <p>Claude gets native desktop tools - screenshot, click, type, scroll, drag. Fully autonomous.</p>
+                    <p>Claude gets native desktop tools — screenshot, click, type, scroll, drag. Fully autonomous.</p>
                 </div>
                 <div class="feat-card">
                     <div class="feat-icon">&#x1F4F8;</div>
                     <h4>Adaptive Screenshots</h4>
-                    <p>Scaled to 1280x720 for the API. Adaptive delays per action type.</p>
+                    <p>Scaled to 1280×720 for the API. ~50ms native capture. Adaptive delays per action type.</p>
                 </div>
                 <div class="feat-card">
                     <div class="feat-icon">&#x1F6E1;</div>
@@ -871,9 +871,9 @@
                     <p>Auto, Preview, Confirm. Three tiers from safe reads to destructive actions.</p>
                 </div>
                 <div class="feat-card">
-                    <div class="feat-icon">&#x1F50C;</div>
-                    <h4>VNC Protocol</h4>
-                    <p>Standard VNC client. Watch the AI work in real-time from your own viewer.</p>
+                    <div class="feat-icon">&#x1F5A5;</div>
+                    <h4>Native Desktop Control</h4>
+                    <p>Direct OS-level screen capture and input via @nut-tree-fork/nut-js. No server needed. 17× faster screenshots.</p>
                 </div>
             </div>
             <div class="safety-grid">
@@ -895,22 +895,25 @@
         <!-- Install -->
         <section id="install" class="sect">
             <div class="sect-label">Get Started</div>
-            <h2>Up and running in 5 minutes</h2>
-            <p class="sub">Just point your AI assistant to clawdcursor.com - or run it manually:</p>
+            <h2>Up and running in 2 minutes</h2>
+            <p class="sub">Just point your AI assistant to clawdcursor.com — or run it manually:</p>
             <div class="code-box">
                 <div class="code-hd">
                     <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
-                    <span>PowerShell</span>
+                    <span>Terminal</span>
                 </div>
-                <pre><code><span class="c-comment"># Clone and setup (installs TightVNC + builds everything)</span>
+                <pre><code><span class="c-comment"># Clone, install, build, start</span>
 <span class="c-cmd">git clone</span> <span class="c-string">https://github.com/AmrDab/clawd-cursor.git</span>
 <span class="c-cmd">cd</span> clawd-cursor
-<span class="c-cmd">powershell</span> <span class="c-flag">-ExecutionPolicy Bypass -File</span> <span class="c-string">setup.ps1</span>
+<span class="c-cmd">npm install</span> && <span class="c-cmd">npm run build</span>
+
+<span class="c-comment"># Set your API key</span>
+<span class="c-cmd">echo</span> <span class="c-string">"AI_API_KEY=sk-ant-api03-..."</span> > .env
 
 <span class="c-comment"># Start</span>
-<span class="c-cmd">npm start</span> <span class="c-flag">--</span> <span class="c-flag">--vnc-password</span> <span class="c-string">yourpass</span></code></pre>
+<span class="c-cmd">npm start</span></code></pre>
             </div>
-            <p style="color: var(--text3); font-size: 0.78rem; margin-top: 10px;">Requires: Node.js 20+ and PowerShell. AI API key optional. macOS and Linux coming soon.</p>
+            <p style="color: var(--text3); font-size: 0.78rem; margin-top: 10px;">Requires: Node.js 20+. AI API key for vision features. No external servers needed.</p>
         </section>
     </div>
 
@@ -951,7 +954,7 @@
     </div>
 
     <footer>
-        <p>Clawd Cursor - MIT License - <button class="contact-btn" onclick="openModal()">Contact</button> - Built by <a href="https://github.com/AmrDab">Amr Dab</a></p>
+        <p>Clawd Cursor — MIT License — <button class="contact-btn" onclick="openModal()">Contact</button> — Built by <a href="https://github.com/AmrDab">Amr Dab</a></p>
     </footer>
 
     <script>

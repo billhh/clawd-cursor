@@ -1,97 +1,79 @@
 ---
 name: clawd-cursor
-version: 0.3.4
+version: 0.4.0
 description: >
-  AI desktop agent that controls Windows/Mac via VNC. Gives your agent eyes and full cursor control —
-  screen capture, mouse clicks, keyboard input, drag operations, and GUI automation.
-  Use when the user wants desktop automation, VNC-based AI control, or GUI testing.
-  Requires: VNC server with password, AI API key (Anthropic or OpenAI) for vision features.
-  Installs: Node.js dependencies via npm, optionally TightVNC via setup script.
+  AI desktop agent that controls Windows/Mac natively via @nut-tree-fork/nut-js. Gives your agent eyes and full cursor control —
+  direct screen capture, mouse clicks, keyboard input, drag operations, and GUI automation.
+  Use when the user wants desktop automation, native AI control, or GUI testing.
+  No external server required. Requires: AI API key (Anthropic or OpenAI) for vision features.
+  Installs: Node.js dependencies via npm.
   Privacy note: screenshots are sent to AI provider APIs (Anthropic/OpenAI) for vision processing.
 metadata:
   openclaw:
     requires:
       env:
-        - VNC_PASSWORD
         - AI_API_KEY
       bins:
         - node
         - npm
-    primaryEnv: VNC_PASSWORD
+    primaryEnv: AI_API_KEY
     install:
       - git clone https://github.com/AmrDab/clawd-cursor.git
-      - cd clawd-cursor && npm install && npx tsc
+      - cd clawd-cursor && npm install && npm run build
     privacy:
       - Screenshots sent to external AI provider (Anthropic/OpenAI)
-      - VNC_PASSWORD grants full desktop GUI control
 ---
 
 # Clawd Cursor
 
-**One skill, multiple endpoints.** Instead of integrating dozens of APIs, give your agent a screen. Gmail, Slack, Jira, Figma — if you can click it, your agent can too. Desktop automation skill for OpenClaw via VNC.
+**One skill, multiple endpoints.** Instead of integrating dozens of APIs, give your agent a screen. Gmail, Slack, Jira, Figma — if you can click it, your agent can too. Desktop automation skill for OpenClaw via native OS-level control.
 
 ## Required Credentials
 
 | Variable | Sensitivity | Purpose |
 |----------|------------|---------|
-| `VNC_PASSWORD` | **High** — grants full desktop control | Authenticates to your VNC server |
 | `AI_API_KEY` | **High** — enables external API calls | Anthropic or OpenAI key for vision/planning |
 
 **Privacy:** Screenshots of your desktop are sent to the configured AI provider (Anthropic or OpenAI) for processing. Only use on machines without sensitive data visible, or in a sandbox/VM.
 
-**Optional variables:** `AI_PROVIDER` (anthropic\|openai), `VNC_HOST` (default: localhost), `VNC_PORT` (default: 5900)
+**Optional variables:** `AI_PROVIDER` (anthropic\|openai)
 
 ## Installation
 
-Requires **Node.js 20+** and a **VNC server** (TightVNC on Windows, built-in Screen Sharing on macOS).
+Requires **Node.js 20+**.
 
 ```bash
 git clone https://github.com/AmrDab/clawd-cursor.git
 cd clawd-cursor
-npm install && npx tsc
+npm install && npm run build
 ```
 
-### Windows One-Command Setup
-
-```powershell
-powershell -ExecutionPolicy Bypass -File setup.ps1
-```
-
-**What the setup script does:**
-1. Checks Node.js version (requires 20+)
-2. Downloads TightVNC installer from `https://www.tightvnc.com/` (requires admin for install — will prompt if not elevated)
-3. Runs `npm install` and `npx tsc`
-4. Creates `.env` from `.env.example`
-
-Source: [`setup.ps1`](https://github.com/AmrDab/clawd-cursor/blob/main/setup.ps1) — review before running.
+No external server or setup script required — native desktop control works out of the box.
 
 ## Configuration
 
 Create `.env` in project root:
 
 ```env
-VNC_PASSWORD=your_vnc_password
 AI_API_KEY=sk-ant-api03-...
 AI_PROVIDER=anthropic
-VNC_HOST=localhost
-VNC_PORT=5900
 ```
 
 ## Running
 
 ```bash
 # Computer Use (Anthropic — recommended for complex tasks)
-npm start -- --vnc-password yourpass --provider anthropic
+npm start -- --provider anthropic
 
 # Action Router (OpenAI/offline — fast for simple tasks)
-npm start -- --vnc-password yourpass --provider openai
+npm start -- --provider openai
 ```
 
 ## Execution Paths
 
 ### Path A: Computer Use API (Anthropic)
 Full task → Claude with native `computer_20250124` tools → screenshots, plans, executes autonomously.
-Best for complex multi-app workflows. ~90-190s. Very reliable.
+Best for complex multi-app workflows. ~100–156s. Very reliable.
 
 ### Path B: Decompose + Route (OpenAI/Offline)
 Task → subtasks → UI Automation tree → direct element interaction. Zero LLM for common patterns.
@@ -118,24 +100,23 @@ Best for simple tasks. ~2s. Works offline.
 
 ## Security Considerations
 
-- VNC password grants **full GUI control** of the machine — use strong passwords, localhost only
 - AI API keys allow **sending screenshots to external APIs** — use test keys first
 - Run in a **sandbox or VM** when testing with sensitive data
 - The `/confirm` endpoint enforces the 🔴 safety tier — verify it works before trusting autonomous operation
-- Review [`setup.ps1`](https://github.com/AmrDab/clawd-cursor/blob/main/setup.ps1) source before running
 
 ## Changelog
 
+### v0.4.0
+- **Native desktop control** via @nut-tree-fork/nut-js — no VNC server required
+- 17× faster screenshots (~50ms vs ~850ms)
+- 5× faster connect time (~38ms vs ~200ms)
+- Simplified onboarding: `npm install && npm start`
+
 ### v0.3.3
-- **Bulletproof headless setup** — setup.ps1 runs end-to-end in non-interactive AI agent shells
-- Random VNC password generation when not provided interactively
-- Fixed msiexec crash (`-PassThru -WindowStyle Hidden` with try/catch)
-- Fixed Start-Service post-install crash (own try/catch)
-- Replaced emoji with ASCII for cp1252 headless terminal compatibility
+- Bulletproof headless setup — setup.ps1 runs end-to-end in non-interactive shells
 
 ### v0.3.0
 - 6 performance optimizations (~70% faster task execution, 90% fewer redundant LLM calls)
-- Screenshot hash cache, adaptive VNC wait, parallel fetch, a11y context cache, async writes, exponential backoff
 
 ### v0.2.0
 - Anthropic Computer Use API as primary execution path
