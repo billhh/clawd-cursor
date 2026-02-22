@@ -15,7 +15,15 @@
 
 ---
 
-## What's New in v0.3.1
+## What's New in v0.3.3
+
+**Bulletproof headless setup** — setup.ps1 now completes end-to-end in a single run on fresh systems, even in non-interactive/headless AI agent shells:
+- Generate random VNC password when `--vnc-password` not provided non-interactively (instead of `exit 1`)
+- Replace `Start-Process -NoNewWindow -Wait` with `-PassThru -WindowStyle Hidden` + try/catch (msiexec crash fix)
+- Wrap `Start-Service` in its own try/catch (post-install crash fix)
+- Replace all emoji (🐾📥📦🔑) with ASCII tags for cp1252 headless terminal compatibility
+
+## v0.3.1
 
 **SKILL.md security hardening** — added YAML frontmatter, explicit credential declarations, privacy disclosure, and security considerations for ClaWHub publishing.
 
