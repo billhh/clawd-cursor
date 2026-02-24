@@ -15,11 +15,14 @@
 
 ---
 
-## What's New in v0.5.0
+## What's New in v0.5.1
 
-**Smart pipeline + self-healing doctor.** Clawd Cursor now auto-detects your AI provider, tests your models, and builds the optimal execution pipeline - from completely free (Ollama) to full power (Anthropic Computer Use).
+**Onboarding fixes + smart pipeline.** All blockers from fresh-user testing resolved. PowerShell-compatible install, fixed model IDs, zero npm audit vulnerabilities, plus the full v0.5.0 smart pipeline.
 
-- **`clawd-cursor doctor`** - auto-diagnoses your setup and configures everything
+- **PowerShell-compatible install** — no more `&&` breaking Windows setup
+- **`npm run doctor` / `npm run stop`** — proper npm scripts (no npx issues)
+- **Fixed Haiku model ID** — Layer 2 accessibility reasoner works out of the box
+- **Zero vulnerabilities** — `npm audit` clean
 - **3-layer pipeline** - Action Router → Accessibility Reasoner → Screenshot fallback
 - **Multi-provider** - Anthropic, OpenAI, Ollama (local/free), Kimi
 - **95% cheaper** - simple tasks run for $0 with local Qwen
