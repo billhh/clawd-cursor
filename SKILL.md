@@ -1,5 +1,5 @@
 ---
-name: clawd-cursor
+name: clawdcursor
 version: 0.5.4
 description: >
   AI desktop agent — control any app on Windows/macOS from your OpenClaw agent.
@@ -318,3 +318,41 @@ npm start                  # starts on port 3847
 | **Anthropic** | Set `AI_API_KEY=sk-ant-...` | ~$3/M tokens |
 | **OpenAI** | Set `AI_API_KEY=sk-...` | ~$5/M tokens |
 | **Kimi** | Set `AI_API_KEY=sk-...` | ~$1/M tokens |
+
+---
+
+## Performance Optimization
+
+Proven optimizations applied to reduce task execution latency and LLM API costs. Reference files in `perf/references/patches/`.
+
+### Applied Optimizations
+
+| # | Name | Impact |
+|---|------|--------|
+| 1 | Screenshot hash cache | 90% fewer LLM calls on static screens |
+| 2 | Parallel screenshot+a11y | 30-40% per-step latency cut |
+| 3 | A11y context cache (2s TTL) | Eliminates redundant PS spawns |
+| 4 | Screenshot compression | 52% smaller payload (58KB vs 120KB) |
+| 5 | Async debug writes | 94% less event loop blocking |
+| 6 | Streaming LLM responses | 1-3s faster per LLM call |
+| 7 | Trimmed system prompts | ~60% fewer prompt tokens |
+| 8 | A11y tree filtering | Interactive elements only, 3000 char cap |
+| 9 | Combined PS script | 1 spawn instead of 3 |
+| 10 | Taskbar cache (30s TTL) | Skip expensive taskbar query |
+| 11 | Delay reduction | 50-150ms vs 200-1500ms |
+
+### Benchmarks (2560x1440)
+
+| Metric | v0.3 (VNC) | v0.4 (Native) | v0.4.1+ (Optimized) |
+|--------|------------|---------------|----------------------|
+| Screenshot capture | ~850ms | ~50ms | ~57ms |
+| Screenshot size | ~200KB | ~120KB | ~58KB |
+| A11y context (uncached) | N/A | ~600ms | ~462ms |
+| A11y context (cached) | N/A | 0ms | 0ms (2s TTL) |
+| Delays (per step) | N/A | 200-1500ms | 50-600ms |
+| System prompt tokens | N/A | ~800 | ~300 |
+
+### Perf Tools
+
+- `perf/apply-optimizations.ps1` — apply all patches
+- `perf/perf-test.ts` — benchmark harness (`npx ts-node perf/perf-test.ts`)
