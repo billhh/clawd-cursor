@@ -35,6 +35,10 @@ export async function runDoctor(opts: {
 
   console.log(`\n🩺 Clawd Cursor Doctor - diagnosing your setup...\n`);
 
+  // ─── 0. Version Check ───────────────────────────────────────────
+  console.log('📦 Version check...');
+  await checkForUpdates(results);
+
   // ─── 1. Screen Capture ───────────────────────────────────────────
   console.log('📸 Screen capture...');
   const config = { ...DEFAULT_CONFIG };
@@ -210,6 +214,80 @@ export async function runDoctor(opts: {
   console.log('');
 
   return pipeline;
+}
+
+/**
+ * Check for newer versions on GitHub releases.
+ */
+async function checkForUpdates(results: DiagResult[]): Promise<void> {
+  try {
+    const pkgPath = path.join(__dirname, '..', 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const currentVersion = pkg.version || '0.0.0';
+    console.log(`   Current: v${currentVersion}`);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const res = await fetch(
+      'https://api.github.com/repos/AmrDab/clawd-cursor/releases/latest',
+      {
+        headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'clawd-cursor-doctor' },
+        signal: controller.signal,
+      },
+    );
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json() as any;
+      const latestTag = (data.tag_name || '').replace(/^v/, '');
+
+      if (latestTag && latestTag !== currentVersion && compareVersions(latestTag, currentVersion) > 0) {
+        console.log(`   ⬆️  Update available: v${latestTag} (you have v${currentVersion})`);
+        console.log(`   Run: git pull origin main && npm install && npm run build`);
+        results.push({
+          name: 'Version',
+          ok: false,
+          detail: `Update available: v${latestTag} (current: v${currentVersion})`,
+        });
+      } else {
+        console.log(`   ✅ Up to date (v${currentVersion})`);
+        results.push({ name: 'Version', ok: true, detail: `v${currentVersion} (latest)` });
+      }
+    } else {
+      // GitHub API rate limit or error — skip gracefully
+      console.log(`   ✅ v${currentVersion} (update check skipped — GitHub API returned ${res.status})`);
+      results.push({ name: 'Version', ok: true, detail: `v${currentVersion} (update check skipped)` });
+    }
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.log(`   ⚠️  Update check timed out (5s) — skipping`);
+    } else {
+      console.log(`   ⚠️  Update check failed — skipping`);
+    }
+    // Don't fail the doctor for a version check issue
+    const pkgPath = path.join(__dirname, '..', 'package.json');
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      results.push({ name: 'Version', ok: true, detail: `v${pkg.version} (update check unavailable)` });
+    } catch {
+      results.push({ name: 'Version', ok: true, detail: 'unknown (update check unavailable)' });
+    }
+  }
+}
+
+/**
+ * Simple semver comparison. Returns >0 if a > b, <0 if a < b, 0 if equal.
+ */
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na !== nb) return na - nb;
+  }
+  return 0;
 }
 
 /**
