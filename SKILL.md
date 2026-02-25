@@ -2,11 +2,10 @@
 name: clawd-cursor
 version: 0.5.1
 description: >
-  AI desktop agent with smart 3-layer pipeline. Controls Windows/Mac natively via @nut-tree-fork/nut-js.
+  AI desktop agent with smart 4-layer pipeline. Controls Windows and macOS natively via screen + accessibility APIs.
   Works with any AI provider (Anthropic, OpenAI, Ollama, Kimi) or completely free with local models.
-  Auto-configures via 'clawd-cursor doctor'. Layer 1 (Action Router) handles 80% of tasks with zero LLM calls.
-  Layer 2 (Accessibility Reasoner) uses cheap text-only LLM. Layer 3 (Screenshot) uses vision for complex tasks.
-  Installs: Node.js dependencies via npm. No external server required.
+  Auto-configures via 'clawd-cursor doctor'. Smart Interaction Layer handles browser tasks with 95% fewer tokens.
+  Cross-platform: Windows (PowerShell/.NET) + macOS (JXA/AppleScript).
 privacy: >
   All screenshots and data stay local on the user's machine. AI calls go only to the user's own configured
   API provider and key — no data is sent to third-party servers or skill authors. With Ollama, everything
@@ -24,11 +23,25 @@ metadata:
     privacy:
       - Screenshots processed by user's own configured AI provider only
       - With Ollama, fully offline — no external API calls
+credentials:
+  - name: AI_API_KEY
+    sensitivity: high
+    description: API key for AI provider (Anthropic, OpenAI, or Kimi). Not needed if using Ollama locally.
+    required: false
 ---
 
 # Clawd Cursor
 
 **One skill, every app.** Instead of integrating dozens of APIs, give your agent a screen. Gmail, Slack, Jira, Figma — if you can click it, your agent can too.
+
+## What's New in v0.5.1
+
+- **Smart Interaction Layer** — Browser tasks use 1 LLM call instead of 18 (95% token savings)
+- **CDP Driver** — Chrome DevTools Protocol for fast, free browser DOM interaction
+- **UI Driver** — Native UI Automation for Windows (.NET) and macOS (JXA)
+- **macOS Support** — Full cross-platform: JXA scripts for accessibility, AppleScript for UI control
+- **Doctor Version Check** — Tells you when updates are available
+- **Self-healing pipeline** — Falls through layers automatically on failure
 
 ## Quick Start
 
@@ -42,17 +55,25 @@ npm start
 
 That's it. The doctor handles provider detection, model testing, and pipeline configuration.
 
-## How It Works — 3-Layer Pipeline
+### macOS Users
+Grant **Accessibility permission** to your terminal app:
+**System Settings → Privacy & Security → Accessibility → add Terminal/iTerm**
+
+See `docs/MACOS-SETUP.md` for full setup guide.
+
+## How It Works — 4-Layer Pipeline
 
 Every task flows through layers. Most tasks are handled by Layer 1 (free, instant). Only complex tasks reach Layer 3.
 
 | Layer | What | Speed | Cost |
 |-------|------|-------|------|
+| **0: Browser Layer** | URL detection → direct navigation | Instant | Free |
 | **1: Action Router** | Regex + UI Automation. Opens apps, types, clicks by name | Instant | Free |
+| **1.5: Smart Interaction** | 1 LLM plan → CDP/UIDriver executes steps free | ~2-5s | 1 LLM call |
 | **2: Accessibility Reasoner** | Reads UI tree → cheap text LLM decides action | ~1s | Free (Qwen) or $0.25/M (Haiku) |
-| **3: Screenshot + Vision** | Full screenshot → vision LLM or Computer Use | ~5-8s | ~$3/M (Sonnet) |
+| **3: Computer Use** | Full screenshot → vision LLM or Anthropic Computer Use | ~5-8s | ~$3/M (Sonnet) |
 
-The user configures **one API key** (or none for Ollama). Clawd Cursor routes internally — the end user never sees or interacts with multiple models.
+**Example:** Sending a Gmail email — Layer 1.5 does it in **1 LLM call, 21 seconds**. Computer Use would take 18 LLM calls, 162 seconds.
 
 ## Provider Support
 
@@ -63,23 +84,28 @@ The user configures **one API key** (or none for Ollama). Clawd Cursor routes in
 | **OpenAI** | `AI_API_KEY=sk-...` | GPT-4o-mini | GPT-4o | ❌ |
 | **Kimi** | `AI_API_KEY=sk-...` | Moonshot-8k | Moonshot-8k | ❌ |
 
+## Platform Support
+
+| Platform | UI Automation | Accessibility | Browser (CDP) |
+|----------|--------------|---------------|---------------|
+| **Windows** | PowerShell/.NET UIAutomation | ✅ Full | ✅ Edge/Chrome |
+| **macOS** | JXA/AppleScript + System Events | ✅ Full | ✅ Chrome |
+| **Linux** | Not yet | Not yet | ✅ Chrome |
+
 ## OpenClaw Agent Instructions
 
 When an OpenClaw agent dispatches Clawd Cursor tasks:
 
-### Simple Tasks (single agent)
-For simple, sequential tasks — just send them one at a time via the REST API:
+### Simple Tasks
 ```
 POST http://localhost:3847/task
 {"task": "Open Notepad and type hello world"}
 ```
 
-### Complex Tasks (optional: two-agent dispatch)
-For heavy workloads, spawn two sub-agents to reduce token usage:
-1. **Setup agent** — runs `doctor`, starts the server, validates connectivity
+### Complex Tasks (two-agent pattern)
+For heavy workloads, spawn two sub-agents:
+1. **Setup agent** — runs `doctor`, starts server, validates connectivity
 2. **Task agent** — sends tasks via REST API, monitors status, reports results
-
-This keeps the setup context separate from the task context, saving tokens on long sessions.
 
 ## Doctor (Self-Healing)
 
@@ -88,9 +114,9 @@ npx clawd-cursor doctor
 ```
 
 The doctor:
-1. Tests screen capture and accessibility bridge
-2. Detects available AI providers
-3. Tests each model for responsiveness
+1. Checks for updates against GitHub releases
+2. Tests screen capture and accessibility bridge
+3. Detects available AI providers and tests models
 4. Builds the optimal pipeline config
 5. Falls back gracefully if models are unavailable
 6. Saves config to `.clawd-config.json`
