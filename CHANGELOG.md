@@ -2,6 +2,15 @@
 
 All notable changes to Clawd Cursor will be documented in this file.
 
+## [0.5.4] - 2026-02-25 — SKILL.md Rewrite + Security Hardening
+
+### Changed
+- **Privacy language clarified** — explicit per-provider data flow (Ollama = fully local, cloud = data to that API only)
+- **Added homepage and source URLs** to skill metadata
+- **Removed hard-coded paths** from SKILL.md
+- **Security section expanded** — includes localhost bind verification command
+- **Security scan addressed** — all flagged documentation gaps resolved
+
 ## [0.5.3] - 2026-02-25 — SKILL.md Rewrite for Agent Autonomy
 
 ### Changed
