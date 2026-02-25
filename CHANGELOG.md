@@ -2,6 +2,18 @@
 
 All notable changes to Clawd Cursor will be documented in this file.
 
+## [0.5.3] - 2026-02-25 — SKILL.md Rewrite for Agent Autonomy
+
+### Changed
+- **SKILL.md rewritten** — agents now understand they have full desktop control and stop asking users to do things they can do themselves
+- **Agent identity shift framing** — blockquote at top overrides default "I can't do desktop things" behavior
+- **"When to Use This" trigger list** — comprehensive decision framework for when to reach for Clawd Cursor
+- **Two paths documented** — REST API (port 3847) for full desktop control, CDP Direct (port 9222) for fast browser reads
+- **Async flow clarified** — concrete polling pattern agents can follow step-by-step
+- **Error recovery table** — 8 common problems with exact solutions
+- **Expanded task examples** — cross-app workflows, data extraction, verification scenarios
+- **README** — added OpenClaw Integration section
+
 ## [0.5.2] - 2026-02-25 — Web Dashboard + Browser Foreground Focus
 
 ### Added

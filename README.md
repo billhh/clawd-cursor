@@ -15,9 +15,18 @@
 
 ---
 
-## What's New in v0.5.2
+## What's New in v0.5.3
 
-**Web Dashboard + Browser Foreground Focus.** Full web UI for controlling tasks, real-time logs, and the AI now brings the browser to the foreground so you see everything it does — like watching a cursor move.
+**SKILL.md Rewrite for Agent Autonomy.** Agents now understand they have full desktop control. Identity shift framing, trigger lists, CDP direct path, async polling pattern, error recovery — all documented so agents act independently instead of asking users to do things for them.
+
+- **🧠 Agent identity shift** — SKILL.md opens with clear framing that overrides "I can't do desktop things" behavior
+- **📋 Decision framework** — "When to Use This" trigger list so agents know exactly when to reach for Clawd Cursor
+- **⚡ Two paths** — REST API for full desktop, CDP Direct for fast browser reads
+- **🔄 Async polling pattern** — step-by-step algorithm agents follow to track task completion
+- **🛠️ Error recovery** — 8 common problems with exact solutions
+- **🔗 OpenClaw integration** — documented as an installable OpenClaw skill
+
+### v0.5.2 — Web Dashboard + Browser Foreground Focus Full web UI for controlling tasks, real-time logs, and the AI now brings the browser to the foreground so you see everything it does — like watching a cursor move.
 
 - **🖥️ Web Dashboard** — open `http://localhost:3847` or run `clawdcursor dashboard`. Submit tasks, view real-time logs, approve/reject safety confirmations, kill switch. Dark theme, zero dependencies.
 - **🪟 Browser foreground focus** — Playwright navigation now activates Chrome at the OS level. No more invisible background tabs.

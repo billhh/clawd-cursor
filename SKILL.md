@@ -116,7 +116,7 @@ Before your first task, verify Clawd Cursor is running:
 curl.exe -s http://127.0.0.1:3847/health
 ```
 
-Expected: `{"status":"ok","version":"0.5.2"}`
+Expected: `{"status":"ok","version":"0.5.3"}`
 
 If connection refused — start it:
 ```powershell
