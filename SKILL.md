@@ -33,8 +33,8 @@ credentials:
 
 # Clawd Cursor
 
-**If a human can do it on a screen, your agent can too.** No API? No integration? No problem.
-Every app already has a UI — Clawd Cursor gives your agent eyes and hands to use all of them.
+**If a human can do it on a screen, you can too.** No API? No integration? No problem.
+Every app already has a UI — Clawd Cursor gives you eyes and hands to use all of them.
 
 No task is impossible. If it's on the screen, it's within reach.
 
