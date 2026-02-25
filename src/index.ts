@@ -119,22 +119,57 @@ program
   });
 
 program
-  .command('task <text>')
-  .description('Send a task to a running Clawd Cursor instance')
+  .command('task [text]')
+  .description('Send a task to a running Clawd Cursor instance (interactive if no text given)')
   .option('--port <port>', 'API server port', '3847')
   .action(async (text, opts) => {
     const url = `http://127.0.0.1:${opts.port}/task`;
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: text }),
+
+    const sendTask = async (taskText: string) => {
+      try {
+        console.log(`\n🐾 Sending: ${taskText}`);
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task: taskText }),
+        });
+        const data = await res.json();
+        console.log(JSON.stringify(data, null, 2));
+      } catch {
+        console.error(`Failed to connect to Clawd Cursor at ${url}`);
+        console.error('Is the agent running? Start it with: clawdcursor start');
+      }
+    };
+
+    if (text) {
+      // One-shot mode: clawdcursor task "Open Calculator"
+      await sendTask(text);
+    } else {
+      // Interactive mode: clawdcursor task
+      const readline = await import('readline');
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
       });
-      const data = await res.json();
-      console.log(JSON.stringify(data, null, 2));
-    } catch {
-      console.error(`Failed to connect to Clawd Cursor at ${url}`);
-      console.error('Is the agent running? Start it with: clawd-cursor start');
+
+      console.log('🐾 Clawd Cursor — Interactive Task Mode');
+      console.log('   Type a task and press Enter. Type "quit" to exit.\n');
+
+      const askTask = () => {
+        rl.question('Enter task: ', async (input: string) => {
+          const trimmed = input.trim();
+          if (!trimmed || trimmed.toLowerCase() === 'quit' || trimmed.toLowerCase() === 'exit') {
+            console.log('👋 Bye!');
+            rl.close();
+            return;
+          }
+          await sendTask(trimmed);
+          console.log('');
+          askTask();
+        });
+      };
+
+      askTask();
     }
   });
 
