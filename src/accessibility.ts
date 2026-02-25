@@ -37,6 +37,7 @@ const SCRIPT_MAP: Record<string, Record<string, string>> = {
     'invoke-element': 'invoke-element.jxa',
     'focus-window': 'focus-window.jxa',
     'get-foreground-window': 'get-foreground-window.jxa',
+    'get-screen-context': 'get-screen-context.jxa',
   },
 };
 
@@ -496,22 +497,22 @@ export class AccessibilityBridge {
         maxBuffer: 1024 * 1024 * 5, // 5MB buffer
       }, (error, stdout, stderr) => {
         if (error) {
-          console.error(`Accessibility script error (${resolvedScript}):`, error.message);
+          const stderrMsg = stderr ? stderr.trim().substring(0, 500) : '';
+          console.error(`Accessibility script error (${resolvedScript}): ${error.message}${stderrMsg ? '\n  stderr: ' + stderrMsg : ''}`);
           reject(error);
           return;
         }
 
-        // On macOS, JXA's console.log() writes to stderr, not stdout. Use stdout first, then stderr fallback.
-        const raw = (typeof stdout === 'string' && stdout.trim()) || (typeof stderr === 'string' && stderr.trim()) || '';
         try {
-          const result = JSON.parse(raw);
+          const result = JSON.parse(stdout.trim());
           if (result.error) {
             reject(new Error(result.error));
           } else {
             resolve(result);
           }
         } catch (parseErr) {
-          console.error(`Failed to parse ${resolvedScript} output:`, raw.substring(0, 200));
+          const stderrMsg = stderr ? stderr.trim().substring(0, 300) : '';
+          console.error(`Failed to parse ${resolvedScript} output: stdout=${stdout.substring(0, 200)}${stderrMsg ? ' stderr=' + stderrMsg : ''}`);
           reject(parseErr);
         }
       });
