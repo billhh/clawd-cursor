@@ -2,6 +2,26 @@
 
 All notable changes to Clawd Cursor will be documented in this file.
 
+## [0.6.0] - 2026-02-26 — Install/Uninstall, OpenClaw Auto-Registration, Doctor UX
+
+### Added
+- **`clawdcursor install`** — one command to set up API key, configure pipeline, and register as OpenClaw skill
+- **`clawdcursor uninstall`** — clean removal of all config, data, and OpenClaw skill registration
+- **Doctor auto-registers as OpenClaw skill** — symlinks into `~/.openclaw/workspace/skills/clawdcursor`
+- **Doctor quick fix commands** — shows exact commands for missing text LLM and vision LLM in summary
+- **Dashboard favorites** — star commands to save them, click to re-run, persists across server restarts
+- **Credential detection** — warns when starring tasks that contain API keys or passwords
+- **OS tabs on website** — Windows/macOS/Linux with auto-detect
+- **Post-build help message** — shows all available commands after `npm run build`
+- **Dynamic OS detection** — system prompt uses actual OS instead of hardcoded "Windows 11" (thanks @molty)
+
+### Changed
+- **SKILL.md rewritten** — agent identity shift framing, trigger lists, CDP direct path, async polling, error recovery
+- **Security hardened** — agents cannot self-approve confirm-tier actions, autonomous use scoped to read-only
+- **Privacy language clarified** — explicit per-provider data flow
+- **Website Get Started simplified** — 3 lines, commands shown in terminal post-build
+- **Anthropic text model updated** — `claude-haiku-4-5` (was `claude-3-5-haiku-20241022`)
+
 ## [0.5.4] - 2026-02-25 — SKILL.md Rewrite + Security Hardening
 
 ### Changed
