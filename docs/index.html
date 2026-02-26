@@ -618,6 +618,31 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 3px; }
+
+        /* OS Tabs */
+        .os-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+            border-bottom: 1px solid var(--border2);
+        }
+        .os-tab {
+            background: transparent;
+            border: none;
+            color: var(--text3);
+            font-family: var(--font);
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .os-tab:hover { color: var(--text1); }
+        .os-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -845,16 +870,47 @@
             <div class="sect-label">Get Started</div>
             <h2>Up and running in 2 minutes</h2>
             <p class="sub">Just point your AI assistant to clawdcursor.com - or run it manually:</p>
-            <div class="code-box">
+
+            <div class="os-tabs">
+                <button class="os-tab active" onclick="switchOS('windows')">Windows</button>
+                <button class="os-tab" onclick="switchOS('macos')">macOS</button>
+                <button class="os-tab" onclick="switchOS('linux')">Linux</button>
+            </div>
+
+            <div class="code-box" id="os-windows" style="display:block;">
                 <div class="code-hd">
                     <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
-                    <span>Terminal</span>
+                    <span>PowerShell</span>
                 </div>
                 <pre><code><span class="c-cmd">git clone</span> <span class="c-string">https://github.com/AmrDab/clawd-cursor.git</span>
 <span class="c-cmd">cd</span> clawd-cursor
 <span class="c-cmd">npm install</span>; <span class="c-cmd">npm run build</span></code></pre>
             </div>
-            <p style="color: var(--text3); font-size: 0.78rem; margin-top: 10px;">Requires: Node.js 20+. Available commands will display in your terminal after build. On Bash/macOS, use <code>&&</code> instead of <code>;</code></p>
+
+            <div class="code-box" id="os-macos" style="display:none;">
+                <div class="code-hd">
+                    <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+                    <span>Terminal</span>
+                </div>
+                <pre><code><span class="c-cmd">git clone</span> <span class="c-string">https://github.com/AmrDab/clawd-cursor.git</span>
+<span class="c-cmd">cd</span> clawd-cursor && <span class="c-cmd">npm install</span> && <span class="c-cmd">npm run build</span>
+
+<span class="c-comment"># Grant Accessibility permissions first:</span>
+<span class="c-comment"># System Settings → Privacy & Security → Accessibility → Add Terminal</span></code></pre>
+            </div>
+
+            <div class="code-box" id="os-linux" style="display:none;">
+                <div class="code-hd">
+                    <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+                    <span>Terminal</span>
+                </div>
+                <pre><code><span class="c-cmd">git clone</span> <span class="c-string">https://github.com/AmrDab/clawd-cursor.git</span>
+<span class="c-cmd">cd</span> clawd-cursor && <span class="c-cmd">npm install</span> && <span class="c-cmd">npm run build</span>
+
+<span class="c-comment"># Linux: browser control via CDP only (no native desktop automation)</span></code></pre>
+            </div>
+
+            <p style="color: var(--text3); font-size: 0.78rem; margin-top: 10px;">Requires: Node.js 20+. Available commands will display in your terminal after build.</p>
         </section>
     </div>
 
@@ -959,6 +1015,29 @@
         function closeModal() { document.getElementById('contactModal').classList.remove('active'); }
         document.getElementById('contactModal').addEventListener('click', function(e) { if (e.target === e.currentTarget) closeModal(); });
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+
+        function switchOS(os) {
+            document.querySelectorAll('.os-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('[id^="os-"]').forEach(function(b) { b.style.display = 'none'; });
+            document.getElementById('os-' + os).style.display = 'block';
+            event.target.classList.add('active');
+        }
+        // Auto-detect OS
+        (function() {
+            var ua = navigator.userAgent || navigator.platform || '';
+            var os = /Mac/i.test(ua) ? 'macos' : /Linux/i.test(ua) ? 'linux' : 'windows';
+            document.querySelectorAll('.os-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('[id^="os-"]').forEach(function(b) { b.style.display = 'none'; });
+            document.getElementById('os-' + os).style.display = 'block';
+            document.querySelectorAll('.os-tab').forEach(function(t) {
+                if (t.textContent.toLowerCase().replace('os', '') === os.replace('os','') ||
+                    (os === 'windows' && t.textContent === 'Windows') ||
+                    (os === 'macos' && t.textContent === 'macOS') ||
+                    (os === 'linux' && t.textContent === 'Linux')) {
+                    t.classList.add('active');
+                }
+            });
+        })();
     </script>
 
     <script data-goatcounter="https://clawdcursor.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
