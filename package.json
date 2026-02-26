@@ -1,6 +1,6 @@
 {
   "name": "clawd-cursor",
-  "version": "0.6.0",
+  "version": "0.5.5",
   "description": "AI Desktop Agent — Native screen control via @nut-tree-fork/nut-js. Your AI sees the screen, moves the mouse, types, and completes tasks autonomously.",
   "main": "dist/index.js",
   "bin": {
@@ -8,7 +8,8 @@
     "clawdcursor": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"console.log('\\n🐾 Clawd Cursor installed! Available commands:\\n\\n  clawdcursor install   Set up API key, configure pipeline, register as OpenClaw skill\\n  clawdcursor doctor    Auto-detect and configure your AI\\n  clawdcursor start     Start the agent\\n  clawdcursor task      Send a task\\n  clawdcursor stop      Stop the agent\\n  clawdcursor dashboard Open the web dashboard\\n  clawdcursor uninstall Remove all config, data, and OpenClaw registration\\n')\"",
+    "build": "tsc && node dist/postbuild.js",
+    "postbuild:msg": "handled by postbuild.js",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js start",
     "stop": "node dist/index.js stop",

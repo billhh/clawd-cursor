@@ -48,7 +48,7 @@ program
 
     console.log(`
 🐾 ╔═══════════════════════════════════════╗
-   ║       CLAWD CURSOR v0.6.0             ║
+   ║       CLAWD CURSOR v0.5.5             ║
    ║   AI Desktop Agent — Smart Pipeline   ║
    ╚═══════════════════════════════════════╝
 `);

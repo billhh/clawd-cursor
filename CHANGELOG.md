@@ -2,7 +2,7 @@
 
 All notable changes to Clawd Cursor will be documented in this file.
 
-## [0.6.0] - 2026-02-26 — Install/Uninstall, OpenClaw Auto-Registration, Doctor UX
+## [0.5.5] - 2026-02-26 — Install/Uninstall, OpenClaw Auto-Registration, Doctor UX
 
 ### Added
 - **`clawdcursor install`** — one command to set up API key, configure pipeline, and register as OpenClaw skill

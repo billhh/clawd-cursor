@@ -15,7 +15,7 @@
 
 ---
 
-## What's New in v0.6.0
+## What's New in v0.5.5
 
 **SKILL.md Rewrite for Agent Autonomy.** Agents now understand they have full desktop control. Identity shift framing, trigger lists, CDP direct path, async polling pattern, error recovery — all documented so agents act independently instead of asking users to do things for them.
 
