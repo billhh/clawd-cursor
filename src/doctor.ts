@@ -196,6 +196,9 @@ export async function runDoctor(opts: {
     console.log(`\n💾 Config saved to ${CONFIG_FILE}`);
   }
 
+  // ─── 6. OpenClaw Skill Registration ──────────────────────────────
+  await registerOpenClawSkill(results);
+
   // ─── Summary ────────────────────────────────────────────────────
   const allOk = results.every(r => r.ok);
   console.log(`\n${'═'.repeat(50)}`);
@@ -214,6 +217,96 @@ export async function runDoctor(opts: {
   console.log('');
 
   return pipeline;
+}
+
+/**
+ * Register Clawd Cursor as an OpenClaw skill by symlinking into the workspace skills folder.
+ */
+async function registerOpenClawSkill(results: DiagResult[]): Promise<void> {
+  console.log('🔗 OpenClaw skill registration...');
+
+  try {
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    if (!homeDir) {
+      console.log('   ⚠️  Could not determine home directory — skipping');
+      return;
+    }
+
+    // Check common OpenClaw workspace locations
+    const candidates = [
+      path.join(homeDir, '.openclaw', 'workspace', 'skills'),
+      path.join(homeDir, '.openclaw-dev', 'workspace', 'skills'),
+    ];
+
+    let skillsDir: string | null = null;
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        skillsDir = candidate;
+        break;
+      }
+    }
+
+    if (!skillsDir) {
+      console.log('   ℹ️  OpenClaw not detected — skipping skill registration');
+      console.log('   💡 Install OpenClaw (https://openclaw.ai) to use Clawd Cursor as an AI skill');
+      return;
+    }
+
+    const skillTarget = path.join(skillsDir, 'clawdcursor');
+    const clawdCursorRoot = path.resolve(__dirname, '..');
+
+    // Check if already registered
+    if (fs.existsSync(skillTarget)) {
+      // Verify it points to the right place
+      try {
+        const stat = fs.lstatSync(skillTarget);
+        if (stat.isSymbolicLink()) {
+          const linkTarget = fs.readlinkSync(skillTarget);
+          if (path.resolve(linkTarget) === clawdCursorRoot) {
+            console.log('   ✅ Already registered as OpenClaw skill');
+            results.push({ name: 'OpenClaw skill', ok: true, detail: 'Registered (symlink)' });
+            return;
+          }
+          // Wrong symlink — remove and recreate
+          fs.unlinkSync(skillTarget);
+        } else {
+          // It's a real directory — check if SKILL.md exists and is current
+          const existingSkill = path.join(skillTarget, 'SKILL.md');
+          if (fs.existsSync(existingSkill)) {
+            console.log('   ✅ Already registered as OpenClaw skill');
+            results.push({ name: 'OpenClaw skill', ok: true, detail: 'Registered (directory)' });
+            return;
+          }
+        }
+      } catch {
+        // Can't read — try to recreate
+      }
+    }
+
+    // Create symlink (or copy on Windows if symlink fails)
+    try {
+      fs.symlinkSync(clawdCursorRoot, skillTarget, 'junction');
+      console.log('   ✅ Registered as OpenClaw skill');
+      console.log(`   📂 ${skillTarget} → ${clawdCursorRoot}`);
+      results.push({ name: 'OpenClaw skill', ok: true, detail: 'Registered (symlink created)' });
+    } catch (symlinkErr) {
+      // Symlink failed (permissions) — copy SKILL.md instead
+      try {
+        fs.mkdirSync(skillTarget, { recursive: true });
+        fs.copyFileSync(
+          path.join(clawdCursorRoot, 'SKILL.md'),
+          path.join(skillTarget, 'SKILL.md')
+        );
+        console.log('   ✅ Registered as OpenClaw skill (copied SKILL.md)');
+        results.push({ name: 'OpenClaw skill', ok: true, detail: 'Registered (SKILL.md copied)' });
+      } catch (copyErr) {
+        console.log(`   ❌ Failed to register: ${copyErr}`);
+        results.push({ name: 'OpenClaw skill', ok: false, detail: String(copyErr) });
+      }
+    }
+  } catch (err) {
+    console.log(`   ⚠️  ${err}`);
+  }
 }
 
 /**
