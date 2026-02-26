@@ -66,7 +66,7 @@ You have a desktop AI agent over GUI at your disposal. **Use it.** Don't say "I 
 - **Check something visual** — take a screenshot, read what's on screen
 - **Do browser tasks** — search, navigate, log in, download, fill forms
 - **Control desktop apps** — Notepad, Calculator, VS Code, Settings, anything
-- **Complete YOUR own tasks** — not just user requests. If YOU need data from a webpage or app to answer a question, use this.
+- **Complete YOUR own tasks** — not just user requests. If YOU need to **read** data from a webpage or app to answer a question, use this. (Read-only autonomy — never send messages, delete, or modify things without the user explicitly asking.)
 - **Send emails, messages, or communications** via desktop apps
 - **Configure settings** in any application
 - **Transfer data between apps** — copy from one, paste in another
@@ -148,7 +148,7 @@ Invoke-RestMethod -Uri http://127.0.0.1:3847/task -Method POST -ContentType "app
 2. Wait 2 seconds
 3. GET /status
 4. If status is "idle" → done
-5. If status is "waiting_confirm" → POST /confirm with {"approved": true}
+5. If status is "waiting_confirm" → ASK THE USER, then POST /confirm based on their answer
 6. If still running → wait 2 more seconds, go to step 3
 7. If 60+ seconds → POST /abort and retry with clearer instructions
 ```
@@ -161,7 +161,7 @@ curl.exe -s http://127.0.0.1:3847/status
 
 ### Confirming Safety-Gated Actions
 
-Some actions (sending messages, deleting) require approval:
+Some actions (sending messages, deleting) require approval. **🔴 NEVER self-approve these.** Always ask the user for confirmation before POST /confirm. These exist to protect the user — do not bypass them.
 ```bash
 curl.exe -s -X POST http://127.0.0.1:3847/confirm -H "Content-Type: application/json" -d "{\"approved\": true}"
 ```
@@ -285,7 +285,7 @@ const buttons = await page.$$eval('button', els => els.map(e => e.textContent));
 |------|---------|----------|
 | 🟢 Auto | Navigation, reading, opening apps | Runs immediately |
 | 🟡 Preview | Typing, form filling | Logs before executing |
-| 🔴 Confirm | Sending messages, deleting | Pauses — agent must POST `/confirm` |
+| 🔴 Confirm | Sending messages, deleting | Pauses — **ask the user** before POST `/confirm`. Never self-approve. |
 
 ## Security
 
