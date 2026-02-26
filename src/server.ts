@@ -244,14 +244,18 @@ export function createServer(agent: Agent, config: ClawdConfig): express.Express
       return res.status(403).json({ error: 'Stop is only allowed from localhost' });
     }
 
-    res.json({ stopped: true, message: 'Clawd Cursor stopped' });
-
-    // Graceful shutdown after response is sent
-    setTimeout(() => {
+    // Send response, then exit after it's flushed
+    const body = JSON.stringify({ stopped: true, message: 'Clawd Cursor stopped' });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) });
+    res.end(body, () => {
+      // Response fully flushed — now shut down
       console.log('\n👋 Shutting down (stop command received)...');
       agent.disconnect();
-      process.exit(0);
-    }, 100);
+      // Force exit after short delay (covers Windows edge cases)
+      setTimeout(() => process.exit(0), 500);
+    });
+    // Failsafe: force exit even if flush hangs
+    setTimeout(() => process.exit(1), 3000);
   });
 
   return app;

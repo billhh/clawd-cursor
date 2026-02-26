@@ -105,9 +105,14 @@ program
   .description('Stop a running Clawd Cursor instance')
   .option('--port <port>', 'API server port', '3847')
   .action(async (opts) => {
-    const url = `http://127.0.0.1:${opts.port}/stop`;
+    const port = parseInt(opts.port, 10);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      console.error('Invalid port number');
+      process.exit(1);
+    }
+    const url = `http://127.0.0.1:${port}/stop`;
     try {
-      const res = await fetch(url, { method: 'POST' });
+      const res = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(5000) });
       const data = await res.json() as any;
       if (data.stopped) {
         console.log('🐾 Clawd Cursor stopped');
@@ -115,8 +120,22 @@ program
         console.error('Unexpected response:', JSON.stringify(data));
       }
     } catch {
-      console.error('No running instance found');
+      // fetch may fail because server died mid-response — that's actually success
     }
+
+    // Verify it actually stopped (wait up to 3s)
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      try {
+        await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(1000) });
+        // Still alive — keep waiting
+      } catch {
+        // Connection refused = dead = success
+        console.log('✅ Server confirmed stopped');
+        return;
+      }
+    }
+    console.error('⚠️  Server may still be running — try: clawdcursor kill');
   });
 
 program
@@ -243,20 +262,74 @@ program
 
 program
   .command('kill')
-  .description('Kill a running Clawd Cursor instance (same as stop)')
+  .description('Force kill a running Clawd Cursor instance')
   .option('--port <port>', 'API server port', '3847')
   .action(async (opts) => {
-    const url = `http://127.0.0.1:${opts.port}/stop`;
+    // Validate port is numeric to prevent command injection
+    const port = parseInt(opts.port, 10);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      console.error('Invalid port number');
+      process.exit(1);
+    }
+
+    // Verify it's actually a Clawd Cursor instance before killing
+    let isClawd = false;
     try {
-      const res = await fetch(url, { method: 'POST' });
+      const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(2000) });
       const data = await res.json() as any;
-      if (data.stopped) {
-        console.log('🐾 Clawd Cursor killed');
+      isClawd = data.status === 'ok' && typeof data.version === 'string';
+    } catch {
+      console.log('🐾 No running instance found on port ' + port);
+      return;
+    }
+
+    if (!isClawd) {
+      console.error('⚠️  Port ' + port + ' is in use but not by Clawd Cursor — aborting');
+      return;
+    }
+
+    // Try graceful stop
+    try {
+      await fetch(`http://127.0.0.1:${port}/stop`, { method: 'POST', signal: AbortSignal.timeout(3000) });
+    } catch {
+      // May fail if server dies mid-response — that's OK
+    }
+
+    // Wait and verify it died
+    await new Promise(r => setTimeout(r, 1500));
+
+    try {
+      await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(1000) });
+      // Still alive — force kill
+      console.log('⚠️  Graceful stop failed — force killing...');
+      const { execSync } = await import('child_process');
+      const os = await import('os');
+      if (os.platform() === 'win32') {
+        try {
+          const output = execSync(
+            `netstat -ano | findstr :${port} | findstr LISTENING`,
+            { encoding: 'utf-8' },
+          );
+          // Parse all PIDs from netstat output, deduplicate
+          const pids = new Set(
+            output.trim().split('\n')
+              .map(line => line.trim().split(/\s+/).pop())
+              .filter((pid): pid is string => !!pid && /^\d+$/.test(pid))
+          );
+          for (const pid of pids) {
+            execSync(`taskkill /F /PID ${pid}`);
+            console.log(`🐾 Killed process ${pid}`);
+          }
+        } catch { console.error('Could not find process to kill'); }
       } else {
-        console.error('Unexpected response:', JSON.stringify(data));
+        try {
+          execSync(`kill -9 $(lsof -ti tcp:${port})`, { shell: '/bin/sh' });
+          console.log('🐾 Clawd Cursor force killed');
+        } catch { console.error('Could not find process to kill'); }
       }
     } catch {
-      console.error('No running instance found');
+      // Connection refused = dead = success
+      console.log('🐾 Clawd Cursor killed');
     }
   });
 
