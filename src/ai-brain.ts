@@ -52,19 +52,27 @@ RULES:
    - Focus existing window instead of re-launching apps
 7. NEVER report success without verifying — check the screen/a11y tree to confirm the action worked`;
 
-const DECOMPOSE_SYSTEM_PROMPT = `Decompose desktop tasks into atomic sub-tasks. Return ONLY a JSON array of strings.
+const DECOMPOSE_SYSTEM_PROMPT = `Decompose desktop tasks into executable sub-tasks. Return ONLY a JSON array of strings.
 
-Commands: "open [app]", "type [text]", "click [element]", "go to [URL]", "press [key]", "focus [app]", "close [app]"
+Allowed command patterns:
+- "open [app or browser name]"
+- "focus [app/window]"
+- "go to [URL]"
+- "click [element name]"
+- "type [EXACT literal text]"
+- "press [key]"
+- "close [app/window]"
 
-Rules:
-- One action per string. Use real URLs (docs.google.com not "google docs")
-- Visual/complex tasks → keep as single descriptive subtask for AI vision
-- Don't over-decompose ambiguous tasks
-
-Examples:
-"Open Paint and draw a stick figure" → ["open Paint", "draw a stick figure on the canvas"]
-"Open Chrome and go to GitHub" → ["open Chrome", "go to github.com"]
-"Type hello" → ["type hello"]`;
+Reasoning rules:
+- Think about what ANY app needs to complete the request: launch/focus, navigation, reach input area, enter exact content, submit/confirm.
+- Use one concrete action per string, in the real order needed to execute.
+- Prefer real, direct URLs (example format: "go to https://docs.google.com").
+- "type" MUST contain the exact literal text to be typed, never an instruction about text.
+- If the user asks to write/compose/create text, YOU must generate the final text and put that full text inside the "type" command.
+- For web apps, include required clicks to reach an editable area before typing (for example start/new/blank buttons).
+- If the user requests a specific browser, open that exact browser by name before navigation.
+- Keep visual or ambiguous operations that require seeing the screen as a single descriptive subtask.
+- Avoid over-decomposition: do not invent unnecessary steps.`;
 
 interface ConversationTurn {
   role: 'user' | 'assistant';

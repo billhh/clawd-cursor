@@ -80,7 +80,8 @@ export class ActionRouter {
    * Try to handle a subtask without LLM. Returns { handled: true } if successful.
    */
   async route(subtask: string): Promise<RouteResult> {
-    const task = subtask.trim().toLowerCase();
+    const rawTask = subtask.trim();
+    const task = rawTask.toLowerCase();
 
     // Guard: compound/multi-step tasks should NOT be routed here.
     // Pattern 1: action verb after a separator (comma, "then", "and then")
@@ -95,50 +96,54 @@ export class ActionRouter {
     }
 
     // 1. "open [app]" / "launch [app]" / "start [app]"
-    const openMatch = task.match(/^(?:open|launch|start|run)\s+(\S.*)$/i);
+    const openMatch = rawTask.match(/^(?:open|launch|start|run)\s+(\S.*)$/i);
     if (openMatch) {
       return this.handleOpenApp(openMatch[1].trim());
     }
 
     // 2. "type [text]" / "type '[text]'" / "enter [text]"
-    const typeMatch = task.match(/^(?:type|enter|write|input)\s+(?:['"]([^'"]*)['"]\s*|(\S.*))$/i);
+    const typeMatch = rawTask.match(/^(?:type|enter|write|input)\s+(?:['"]([^'"]*)['"]\s*|(\S.*))$/i);
     if (typeMatch) {
       return this.handleType(typeMatch[1] ?? typeMatch[2]);
     }
 
     // 3. "go to [url]" / "navigate to [url]" / "visit [url]"
-    const urlMatch = task.match(/^(?:go to|navigate to|visit|browse to|open)\s+(https?:\/\/[^\s]+|www\.[^\s]+|[^\s.]+\.\w{2,}(?:\/[^\s]*)?)$/i);
+    const urlMatch = rawTask.match(/^(?:go to|navigate to|visit|browse to|open)\s+(https?:\/\/[^\s]+|www\.[^\s]+|[^\s.]+\.\w{2,}(?:\/[^\s]*)?)$/i);
     if (urlMatch) {
       return this.handleNavigateToUrl(urlMatch[1]);
     }
 
     // 4. "press [key]" — direct key press (BEFORE click to avoid "press enter" being caught as click)
-    const keyMatch = task.match(/^(?:press|hit)\s+(\S.*)$/i);
+    const keyMatch = rawTask.match(/^(?:press|hit)\s+(\S.*)$/i);
     if (keyMatch) {
       return this.handleKeyPress(keyMatch[1].trim());
     }
 
     // 5. "click [element]" — try a11y lookup (no "press"/"hit" — handled above)
-    const clickMatch = task.match(/^(?:click|tap)\s+(?:the\s+)?(?:on\s+)?['"]([^'"]+)['"](?:\s+(?:button|link|tab|menu|item))?$/i) ||
-                       task.match(/^(?:click|tap)\s+(?:the\s+)?(?:on\s+)?(\S.*)$/i);
+    const clickMatch = rawTask.match(
+      /^(?:click|tap)\s+(?:the\s+)?(?:on\s+)?(?:['"]([^'"]+)['"]|(.+?))(?:\s+(?:button|link|tab|menu|item))?\s*$/i,
+    );
     if (clickMatch) {
-      return this.handleClick(clickMatch[1].trim());
+      const elementName = (clickMatch[1] ?? clickMatch[2] ?? '').trim();
+      if (elementName) {
+        return this.handleClick(elementName);
+      }
     }
 
     // 6. "focus [window]" / "switch to [window]"
-    const focusMatch = task.match(/^(?:focus|switch to|bring up|activate|go to)\s+(\S.*)$/i);
+    const focusMatch = rawTask.match(/^(?:focus|switch to|bring up|activate|go to)\s+(\S.*)$/i);
     if (focusMatch) {
       return this.handleFocusWindow(focusMatch[1].trim());
     }
 
     // 7. "close [window/app]"
-    const closeMatch = task.match(/^(?:close)\s+(\S.*)$/i);
+    const closeMatch = rawTask.match(/^(?:close)\s+(\S.*)$/i);
     if (closeMatch) {
       return this.handleClose(closeMatch[1].trim());
     }
 
     // 8. "minimize [window]" / "maximize [window]"
-    const winCtrlMatch = task.match(/^(minimize|maximize)\s+(\S.*)$/i);
+    const winCtrlMatch = rawTask.match(/^(minimize|maximize)\s+(\S.*)$/i);
     if (winCtrlMatch) {
       return this.handleWindowControl(winCtrlMatch[1].toLowerCase(), winCtrlMatch[2].trim());
     }
@@ -180,7 +185,7 @@ export class ActionRouter {
     }
 
     // 10. "find <text>" → Ctrl/Cmd+F then type
-    const findMatch = task.match(/^(?:find|search in page|search within|search)\s+(.+)$/i);
+    const findMatch = rawTask.match(/^(?:find|search in page|search within|search)\s+(.+)$/i);
     if (findMatch) {
       await this.desktop.keyPress(`${mod}+f`);
       await this.delay(200);
