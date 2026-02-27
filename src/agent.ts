@@ -370,7 +370,19 @@ export class Agent {
         console.log(`   ✅ Router: ${routeResult.description}`);
         steps.push({ action: 'routed', description: routeResult.description, success: true, timestamp: Date.now() });
         const isLaunch = routeResult.description.toLowerCase().includes('launch');
+        const isTimeout = routeResult.description.toLowerCase().includes('timeout');
         await this.delay(isLaunch ? 150 : 50);
+
+        // If router reported a timeout/warning OR this is a click that might not have worked,
+        // AND there are remaining subtasks, hand off remaining work to Computer Use
+        if (isTimeout && subtasks.length > 1 && i < subtasks.length - 1 && this.computerUse) {
+          const remainingTask = subtasks.slice(i + 1).join(', then ');
+          console.log(`   ⚠️ Router had timeout — handing remaining ${subtasks.length - i - 1} subtask(s) to Computer Use`);
+          console.log(`   🖥️  Remaining: "${remainingTask}"`);
+          const fallbackResult = await this.executeLLMFallback(remainingTask, steps, debugDir, i + 1);
+          llmCallCount += fallbackResult.llmCalls;
+          break; // Computer Use handled the rest
+        }
         continue;
       }
 
@@ -388,6 +400,15 @@ export class Agent {
               continue;
             } catch (err) {
               console.log(`   ⚠️ Layer 2 action failed: ${err} → falling through to Layer 3`);
+              // Layer 2 failed — hand remaining subtasks (including this one) to Computer Use
+              if (this.computerUse) {
+                const remainingTask = subtasks.slice(i).join(', then ');
+                console.log(`   🖥️  Handing off to Computer Use: "${remainingTask}"`);
+                const fallbackResult = await this.executeLLMFallback(remainingTask, steps, debugDir, i);
+                llmCallCount += fallbackResult.llmCalls;
+                i = subtasks.length; // skip remaining — Computer Use handled them
+                break;
+              }
             }
           } else {
             // Task done per reasoner
@@ -398,15 +419,17 @@ export class Agent {
         // If unsure or failed, fall through to Layer 3
       }
 
-      // Layer 3: LLM vision fallback (screenshot)
+      // Layer 3: LLM vision fallback — hand off ALL remaining subtasks, not just current one
       if (this.hasApiKey) {
         await this.delay(150);
-        console.log(`   🧠 LLM vision fallback...`);
-        const fallbackResult = await this.executeLLMFallback(subtask, steps, debugDir, i);
+        const remainingTask = subtasks.slice(i).join(', then ');
+        console.log(`   🧠 LLM vision fallback for remaining: "${remainingTask}"`);
+        const fallbackResult = await this.executeLLMFallback(remainingTask, steps, debugDir, i);
         llmCallCount += fallbackResult.llmCalls;
         if (!fallbackResult.success) {
           console.log(`   ❌ LLM fallback failed for: "${subtask}"`);
         }
+        break; // Computer Use handled the rest
       } else {
         steps.push({ action: 'skipped', description: `Skipped "${subtask}" — no API key`, success: false, timestamp: Date.now() });
       }
