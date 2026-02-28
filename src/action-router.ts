@@ -12,6 +12,7 @@ import { promisify } from 'util';
 import { AccessibilityBridge } from './accessibility';
 import { NativeDesktop } from './native-desktop';
 import { normalizeKey } from './keys';
+import { findShortcut } from './shortcuts';
 import type { WindowInfo } from './accessibility';
 
 const execFileAsync = promisify(execFile);
@@ -22,6 +23,15 @@ export interface RouteResult {
   handled: boolean;
   description: string;
   error?: string;
+}
+
+
+export interface RouterTelemetry {
+  totalRequests: number;
+  shortcutHits: number;
+  shortcutFuzzyHits: number;
+  nonShortcutHandled: number;
+  llmFallbacks: number;
 }
 
 /**
@@ -78,16 +88,38 @@ const READY_SETTLE_MS = 500;      // extra ms after window appears (let UI rende
 export class ActionRouter {
   private a11y: AccessibilityBridge;
   private desktop: NativeDesktop;
+  private telemetry: RouterTelemetry = {
+    totalRequests: 0,
+    shortcutHits: 0,
+    shortcutFuzzyHits: 0,
+    nonShortcutHandled: 0,
+    llmFallbacks: 0,
+  };
 
   constructor(a11y: AccessibilityBridge, desktop: NativeDesktop) {
     this.a11y = a11y;
     this.desktop = desktop;
   }
 
+  getTelemetry(): RouterTelemetry {
+    return { ...this.telemetry };
+  }
+
+  resetTelemetry(): void {
+    this.telemetry = {
+      totalRequests: 0,
+      shortcutHits: 0,
+      shortcutFuzzyHits: 0,
+      nonShortcutHandled: 0,
+      llmFallbacks: 0,
+    };
+  }
+
   /**
    * Try to handle a subtask without LLM. Returns { handled: true } if successful.
    */
   async route(subtask: string): Promise<RouteResult> {
+    this.telemetry.totalRequests += 1;
     const rawTask = subtask.trim();
     const task = rawTask.toLowerCase();
 
@@ -100,104 +132,92 @@ export class ActionRouter {
     const separatorVerb = /(?:,\s*|\band\s+then\s+|\bthen\s+)\b(open|launch|start|type|click|tap|save|close|find|press|navigate|go to|draw|write|send|create|delete|move|drag|search|download|upload)\b/i;
     const verbAndVerb = /^(open|launch|start|type|click|tap|navigate|go to|find|press)\b.+\band\s+(open|launch|start|type|click|tap|save|close|find|press|navigate|go to|draw|write|send|create|delete|move|drag|search|download|upload)\b/i;
     if (separatorVerb.test(task) || verbAndVerb.test(task)) {
+      this.telemetry.llmFallbacks += 1;
       return { handled: false, description: 'Compound task — needs decomposition' };
     }
 
     // 1. "open [app]" / "launch [app]" / "start [app]"
     const openMatch = rawTask.match(/^(?:open|launch|start|run)\s+(\S.*)$/i);
     if (openMatch) {
+      this.telemetry.nonShortcutHandled += 1;
       return this.handleOpenApp(openMatch[1].trim());
     }
 
     // 2. "type [text]" / "type '[text]'" / "enter [text]"
     const typeMatch = rawTask.match(/^(?:type|enter|write|input)\s+(?:['"]([^'"]*)['"]\s*|(\S.*))$/i);
     if (typeMatch) {
+      this.telemetry.nonShortcutHandled += 1;
       return this.handleType(typeMatch[1] ?? typeMatch[2]);
     }
 
     // 3. "go to [url]" / "navigate to [url]" / "visit [url]"
     const urlMatch = rawTask.match(/^(?:go to|navigate to|visit|browse to|open)\s+(https?:\/\/[^\s]+|www\.[^\s]+|[^\s.]+\.\w{2,}(?:\/[^\s]*)?)$/i);
     if (urlMatch) {
+      this.telemetry.nonShortcutHandled += 1;
       return this.handleNavigateToUrl(urlMatch[1]);
     }
 
-    // 4. "press [key]" — direct key press (BEFORE click to avoid "press enter" being caught as click)
+    // 4. Shortcut registry (natural-language → fast keyboard action)
+    const shortcutContext = await this.getShortcutContextHint();
+    const shortcutMatch = findShortcut(task, PLATFORM, { contextHint: shortcutContext, enableFuzzy: true });
+    if (shortcutMatch) {
+      this.telemetry.shortcutHits += 1;
+      if (shortcutMatch.matchType === 'fuzzy') this.telemetry.shortcutFuzzyHits += 1;
+      await this.desktop.keyPress(shortcutMatch.combo);
+      return {
+        handled: true,
+        description: `Pressed ${shortcutMatch.combo} (${shortcutMatch.canonicalIntent}${shortcutMatch.matchType === 'fuzzy' ? ', fuzzy' : ''})`,
+      };
+    }
+
+    // 5. "press [key]" — direct key press (BEFORE click to avoid "press enter" being caught as click)
     const keyMatch = rawTask.match(/^(?:press|hit)\s+(\S.*)$/i);
     if (keyMatch) {
+      this.telemetry.nonShortcutHandled += 1;
       return this.handleKeyPress(keyMatch[1].trim());
     }
 
-    // 5. "click [element]" — try a11y lookup (no "press"/"hit" — handled above)
+    // 6. "click [element]" — try a11y lookup (no "press"/"hit" — handled above)
     const clickMatch = rawTask.match(
       /^(?:click|tap)\s+(?:the\s+)?(?:on\s+)?(?:['"]([^'"]+)['"]|(.+?))(?:\s+(?:button|link|tab|menu|item))?\s*$/i,
     );
     if (clickMatch) {
       const elementName = (clickMatch[1] ?? clickMatch[2] ?? '').trim();
       if (elementName) {
+        this.telemetry.nonShortcutHandled += 1;
         return this.handleClick(elementName);
       }
     }
 
-    // 6. "focus [window]" / "switch to [window]"
+    // 7. "focus [window]" / "switch to [window]"
     const focusMatch = rawTask.match(/^(?:focus|switch to|bring up|activate|go to)\s+(\S.*)$/i);
     if (focusMatch) {
+      this.telemetry.nonShortcutHandled += 1;
       return this.handleFocusWindow(focusMatch[1].trim());
     }
 
-    // 7. "close [window/app]"
+    // 8. "close [window/app]"
     const closeMatch = rawTask.match(/^(?:close)\s+(\S.*)$/i);
     if (closeMatch) {
+      this.telemetry.nonShortcutHandled += 1;
       return this.handleClose(closeMatch[1].trim());
     }
 
-    // 8. "minimize [window]" / "maximize [window]"
+    // 9. "minimize [window]" / "maximize [window]"
     const winCtrlMatch = rawTask.match(/^(minimize|maximize)\s+(\S.*)$/i);
     if (winCtrlMatch) {
+      this.telemetry.nonShortcutHandled += 1;
       return this.handleWindowControl(winCtrlMatch[1].toLowerCase(), winCtrlMatch[2].trim());
     }
 
-    // 9. "select all" / "copy" / "paste" / "undo" / "redo" / "save" + common shortcuts
-    const mod = PLATFORM === 'darwin' ? 'Super' : 'ctrl'; // Cmd on macOS, Ctrl on Windows
-    const shortcutMap: Record<string, string> = {
-      'select all': `${mod}+a`,
-      'copy': `${mod}+c`,
-      'paste': `${mod}+v`,
-      'cut': `${mod}+x`,
-      'undo': `${mod}+z`,
-      'redo': PLATFORM === 'darwin' ? 'Super+shift+z' : 'ctrl+y',
-      'save': `${mod}+s`,
-      'save as': `${mod}+shift+s`,
-      'find': `${mod}+f`,
-      'new tab': `${mod}+t`,
-      'close tab': `${mod}+w`,
-      'new window': `${mod}+n`,
-      'refresh': PLATFORM === 'darwin' ? 'Super+r' : 'F5',
-      'reload': PLATFORM === 'darwin' ? 'Super+r' : 'F5',
-      'go back': PLATFORM === 'darwin' ? 'Super+[' : 'Alt+Left',
-      'back': PLATFORM === 'darwin' ? 'Super+[' : 'Alt+Left',
-      'go forward': PLATFORM === 'darwin' ? 'Super+]' : 'Alt+Right',
-      'forward': PLATFORM === 'darwin' ? 'Super+]' : 'Alt+Right',
-      'zoom in': `${mod}+plus`,
-      'zoom out': `${mod}+minus`,
-      'page down': 'PageDown',
-      'page up': 'PageUp',
-      'home': 'Home',
-      'end': 'End',
-    };
-
-    for (const [pattern, combo] of Object.entries(shortcutMap)) {
-      if (task === pattern || task === `press ${pattern}`) {
-        await this.desktop.keyPress(combo);
-        return { handled: true, description: `Pressed ${combo} (${pattern})` };
-      }
-    }
-
     // 10. "find <text>" → Ctrl/Cmd+F then type
+    const mod = PLATFORM === 'darwin' ? 'Super' : 'Control'; // Cmd on macOS, Ctrl on Windows/Linux
     const findMatch = rawTask.match(/^(?:find|search in page|search within|search)\s+(.+)$/i);
     if (findMatch) {
       await this.desktop.keyPress(`${mod}+f`);
       await this.delay(200);
       await this.desktop.typeText(findMatch[1]);
+      this.telemetry.nonShortcutHandled += 1;
       return { handled: true, description: `Find "${findMatch[1]}"` };
     }
 
@@ -205,18 +225,21 @@ export class ActionRouter {
     if (/^(take|capture)\s+(a\s+)?screenshot$/.test(task)) {
       const combo = PLATFORM === 'darwin' ? 'Super+Shift+4' : 'Super+Shift+s';
       await this.desktop.keyPress(combo);
+      this.telemetry.nonShortcutHandled += 1;
       return { handled: true, description: `Screenshot via ${combo}` };
     }
 
     if (/^(show|go to)\s+desktop|minimize all$/.test(task)) {
       const combo = PLATFORM === 'darwin' ? 'Super+Option+m' : 'Super+d';
       await this.desktop.keyPress(combo);
+      this.telemetry.nonShortcutHandled += 1;
       return { handled: true, description: `Show desktop via ${combo}` };
     }
 
     if (/^lock\s+screen$/.test(task)) {
       const combo = PLATFORM === 'darwin' ? 'Control+Super+q' : 'Super+l';
       await this.desktop.keyPress(combo);
+      this.telemetry.nonShortcutHandled += 1;
       return { handled: true, description: `Lock screen via ${combo}` };
     }
 
@@ -225,10 +248,12 @@ export class ActionRouter {
       await this.desktop.keyPress(`${mod}+a`);
       await this.delay(100);
       await this.desktop.keyPress('Delete');
+      this.telemetry.nonShortcutHandled += 1;
       return { handled: true, description: 'Select all and delete' };
     }
 
     // Not handled — fall back to LLM
+    this.telemetry.llmFallbacks += 1;
     return { handled: false, description: `Could not route: "${subtask}"` };
   }
 
@@ -633,6 +658,17 @@ export class ActionRouter {
   }
 
   // ─── Utility ───────────────────────────────────────────────────────
+
+
+  private async getShortcutContextHint(): Promise<string> {
+    try {
+      const active = await this.a11y.getActiveWindow();
+      if (!active) return '';
+      return `${active.title} ${active.processName}`.toLowerCase();
+    } catch {
+      return '';
+    }
+  }
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
