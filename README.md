@@ -24,7 +24,7 @@
 **Fluid LLM Decomposition, Interactive Doctor, Smart Vision Fallback.**
 
 - **🧠 Fluid task decomposition** — LLM reasons about what ANY app needs instead of matching hardcoded patterns. "Write me a sentence about dogs" now generates actual content, not literal text.
-- **🩺 Interactive doctor onboarding** — scans all providers (Ollama, Anthropic, OpenAI, Kimi), detects GPU/VRAM, shows TEXT and VISION LLM options with recommendations, lets you pick. Paste an API key inline to add a cloud provider.
+- **🩺 Interactive doctor onboarding** — scans all providers (Ollama, Anthropic, OpenAI, Groq, Together, DeepSeek, Kimi, and any OpenAI-compatible endpoint), detects GPU/VRAM, shows TEXT and VISION LLM options with recommendations, lets you pick. Paste an API key inline to add a cloud provider.
 - **🖥️ Smart vision fallback** — when cheap layers handle part of a compound task but fail midway, remaining subtasks are bundled and handed to Computer Use (vision). No more false-success trapping.
 - **🔄 Ollama auto-detection** — brain auto-reconfigures to use local Ollama for decomposition when no cloud API key is set. No more "offline mode" when Ollama is running.
 - **🖱️ Flexible click routing** — action router handles `click Blank document` (no quotes needed), preserves case for typed text and URLs.
@@ -35,13 +35,13 @@
 - **🖥️ Web Dashboard** — open `http://localhost:3847` or run `clawdcursor dashboard`. Submit tasks, view real-time logs, approve/reject safety confirmations, kill switch. Dark theme, zero dependencies.
 - **🪟 Browser foreground focus** — Playwright navigation now activates Chrome at the OS level. No more invisible background tabs.
 - **🧠 Smart task handoff** — no more regex word lists. LLM plans multi-step browser tasks (e.g. "open youtube and play adele") instead of pattern matching.
-- **Multi-provider** — Anthropic, OpenAI, Ollama (local/free), Kimi
-- **95% cheaper** — simple tasks run for $0 with local Qwen
+- **Multi-provider** — Anthropic, OpenAI, Groq, Together, DeepSeek, Kimi, Ollama, or any OpenAI-compatible endpoint
+- **95% cheaper** — simple tasks run for $0 with local models
 - **Self-healing** — if a model fails, the pipeline adapts automatically
 
 ### Performance
 
-| Task | v0.4 (Anthropic only) | v0.5+ (Ollama, $0) | v0.5+ (Anthropic) |
+| Task | v0.4 (single provider) | v0.5+ (local, $0) | v0.5+ (cloud) |
 |------|-----------------------|---------------------|-------------------|
 | Calculator (255*38=) | 43s | **2.6s** | **20.1s** |
 | Notepad (type hello) | 73s | **2.0s** | **54.2s** |
@@ -107,7 +107,7 @@ clawdcursor start
 
 The doctor will:
 1. Test your screen capture and accessibility bridge
-2. Scan all AI providers (Anthropic, OpenAI, Ollama, Kimi) and detect GPU/VRAM
+2. Scan all AI providers (Anthropic, OpenAI, Groq, Together, DeepSeek, Kimi, Ollama) and detect GPU/VRAM
 3. Test each model and show you what works with latency
 4. Let you pick your TEXT LLM and VISION LLM (or accept the recommended defaults)
 5. Show setup instructions for any unconfigured cloud providers
@@ -128,25 +128,37 @@ curl http://localhost:3847/task -H "Content-Type: application/json" \
 
 **Free (no API key needed):**
 ```bash
-# Just need Ollama running locally
-ollama pull qwen2.5:7b
-clawdcursor doctor --provider ollama
-clawdcursor start --provider ollama
-```
-
-**Anthropic (recommended for complex tasks):**
-```bash
-echo "AI_API_KEY=sk-ant-api03-..." > .env
+# Just need Ollama running with any model
+ollama pull <model>   # e.g. qwen2.5:7b, llama3.2, gemma2
 clawdcursor doctor
 clawdcursor start
 ```
 
-**OpenAI:**
+**Any cloud provider:**
 ```bash
-echo "AI_API_KEY=sk-..." > .env
-clawdcursor doctor --provider openai
-clawdcursor start --provider openai
+echo "AI_API_KEY=your-key-here" > .env
+clawdcursor doctor
+clawdcursor start
 ```
+
+Doctor auto-detects your provider from the key format. Supported out of the box:
+
+| Provider | Key prefix | Vision | Computer Use |
+|----------|-----------|--------|-------------|
+| Anthropic | `sk-ant-` | ✅ | ✅ |
+| OpenAI | `sk-` | ✅ | ❌ |
+| Groq | `gsk_` | ✅ | ❌ |
+| Together AI | — | ✅ | ❌ |
+| DeepSeek | — | ✅ | ❌ |
+| Kimi/Moonshot | `sk-` (long) | ❌ | ❌ |
+| Any OpenAI-compatible | — | varies | ❌ |
+
+For providers without key prefix detection, specify explicitly:
+```bash
+clawdcursor doctor --provider together --api-key YOUR_KEY
+```
+
+**OpenClaw users:** No setup needed — Clawd Cursor auto-discovers all your configured providers.
 
 ---
 
@@ -205,18 +217,23 @@ Every task flows through up to 5 layers. Each layer is cheaper and faster than t
 
 | Provider | Layer 1 | Layer 2 (text) | Layer 3 (vision) | Computer Use |
 |----------|---------|----------------|-------------------|-------------|
-| Anthropic | ✅ | Haiku or Qwen | Sonnet | ✅ Native |
+| Anthropic | ✅ | Haiku | Sonnet | ✅ Native |
 | OpenAI | ✅ | GPT-4o-mini | GPT-4o | ❌ |
-| Ollama | ✅ | Qwen 7B (free) | Limited | ❌ |
+| Groq | ✅ | Llama 3.3 70B | Llama 3.2 90B Vision | ❌ |
+| Together AI | ✅ | Llama 3.1 70B | Llama 3.2 90B Vision | ❌ |
+| DeepSeek | ✅ | DeepSeek Chat | DeepSeek Chat | ❌ |
 | Kimi | ✅ | Moonshot-8k | Moonshot-8k | ❌ |
+| Ollama | ✅ | Auto-detected | Auto-detected | ❌ |
 | No key | ✅ | ❌ | ❌ | ❌ |
+
+**Mixed providers:** Doctor can configure Ollama for text (free) + a cloud provider for vision (best quality). The pipeline picks the cheapest option for each layer automatically.
 
 ### Self-Healing
 
 The pipeline adapts at runtime:
 - **Model fails?** → Circuit breaker trips, falls to next layer
 - **API rate limited?** → Exponential backoff + automatic retry
-- **Doctor detects issues?** → Falls back to available alternatives (e.g., Haiku unavailable → Ollama Qwen)
+- **Doctor detects issues?** → Falls back to available alternatives (e.g., cloud model unavailable → local Ollama)
 
 ---
 
@@ -237,12 +254,16 @@ npm run doctor
 🔍 Scanning providers...
    Anthropic:           ✅ key found (sk-ant-a...)
    OpenAI:              ❌ no key
+   Groq:                ❌ no key
+   Together AI:         ❌ no key
+   DeepSeek:            ❌ no key
    Kimi (Moonshot):     ❌ no key
-   Ollama (Local):      ✅ running (qwen3:8b, qwen2.5:7b, deepseek-r1:8b)
+   Ollama (Local):      ✅ running (qwen2.5:7b, llama3.2)
 
    💡 Cloud providers not configured (add API keys to unlock):
-      OpenAI: set OPENAI_API_KEY — https://platform.openai.com (GPT-4o vision)
-      Kimi: set MOONSHOT_API_KEY — https://platform.moonshot.cn (256k context, affordable)
+      OpenAI: set OPENAI_API_KEY — https://platform.openai.com
+      Groq: set GROQ_API_KEY — https://console.groq.com
+      Together AI: set TOGETHER_API_KEY — https://api.together.xyz
 
    Testing models...
    Text:   claude-haiku-4-5 (Anthropic) ✅ 498ms
@@ -345,7 +366,7 @@ clawdcursor stop         Stop the running server
 
 Options:
   --port <port>          API port (default: 3847)
-  --provider <provider>  anthropic|openai|ollama|kimi
+  --provider <provider>  Auto-detected, or: anthropic|openai|ollama|groq|together|deepseek|kimi|...
   --model <model>        Override vision model
   --api-key <key>        AI provider API key
   --debug                Save screenshots to debug/ folder
@@ -387,7 +408,7 @@ open -a "Microsoft Edge" --args --remote-debugging-port=9222
 
 ## Tech Stack
 
-TypeScript · Node.js · @nut-tree-fork/nut-js · sharp · Express · Anthropic Computer Use API · Windows UI Automation · macOS Accessibility (JXA) · Ollama
+TypeScript · Node.js · @nut-tree-fork/nut-js · sharp · Express · Any OpenAI-compatible API · Anthropic Computer Use · Windows UI Automation · macOS Accessibility (JXA) · Ollama
 
 ## License
 
