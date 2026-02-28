@@ -19,6 +19,13 @@ All notable changes to Clawd Cursor will be documented in this file.
 - `--provider` CLI flag accepts any string (not limited to 4 providers)
 - README updated with 7-provider compatibility table
 
+### Security
+- **SKILL.md hardened** — removed aggressive autonomy language ("use without asking", "be independent")
+- **Sensitive App Policy** — agents must ask the user before accessing email, banking, messaging, or password managers
+- **Safety tiers as hard rules** — 🔴 Confirm actions must never be self-approved by agents
+- **Data flow transparency** — expanded security section documents network isolation, per-provider data flow, and Ollama = fully offline
+- **No credentials in skill directory** — OpenClaw users get auto-discovery from local config; no keys stored in skill files
+
 ### Fixed
 - Vision model crash when main provider set to Ollama but vision uses Anthropic (`model not found` error)
 - Brain reconfiguration was wiping vision credentials — now preserved

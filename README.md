@@ -21,21 +21,25 @@
 
 ## What's New in v0.6.0
 
-**Fluid LLM Decomposition, Interactive Doctor, Smart Vision Fallback.**
+**Universal Provider Support, OpenClaw Integration, Security Hardening.**
 
-- **🧠 Fluid task decomposition** — LLM reasons about what ANY app needs instead of matching hardcoded patterns. "Write me a sentence about dogs" now generates actual content, not literal text.
-- **🩺 Interactive doctor onboarding** — scans all providers (Ollama, Anthropic, OpenAI, Groq, Together, DeepSeek, Kimi, and any OpenAI-compatible endpoint), detects GPU/VRAM, shows TEXT and VISION LLM options with recommendations, lets you pick. Paste an API key inline to add a cloud provider.
-- **🖥️ Smart vision fallback** — when cheap layers handle part of a compound task but fail midway, remaining subtasks are bundled and handed to Computer Use (vision). No more false-success trapping.
-- **🔄 Ollama auto-detection** — brain auto-reconfigures to use local Ollama for decomposition when no cloud API key is set. No more "offline mode" when Ollama is running.
-- **🖱️ Flexible click routing** — action router handles `click Blank document` (no quotes needed), preserves case for typed text and URLs.
-- **⚡ Compound task guard** — action router detects multi-step tasks and skips to deeper layers instead of trying to handle them as single actions.
+- **🔗 OpenClaw integration** — auto-discovers all configured providers from OpenClaw's config. No separate API key needed when running as a skill.
+- **🌐 Universal provider support** — Anthropic, OpenAI, Groq, Together AI, DeepSeek, Kimi, Ollama, or any OpenAI-compatible endpoint. Provider auto-detected from API key format.
+- **🧠 Mixed provider pipelines** — use Ollama for text (free) + cloud for vision (best quality). Doctor picks the optimal split automatically.
+- **🔒 Security hardened** — sensitive app policy (agents must ask before email/banking/messaging), safety tiers enforced, no credentials stored in skill files.
+- **🔧 Auto-detection as default** — no hardcoded models or providers. Doctor dynamically picks the best available setup.
 
-### v0.5.2 — Web Dashboard + Browser Foreground Focus Full web UI for controlling tasks, real-time logs, and the AI now brings the browser to the foreground so you see everything it does — like watching a cursor move.
+### v0.5.6 — Fluid Decomposition, Interactive Doctor, Smart Vision Fallback
 
-- **🖥️ Web Dashboard** — open `http://localhost:3847` or run `clawdcursor dashboard`. Submit tasks, view real-time logs, approve/reject safety confirmations, kill switch. Dark theme, zero dependencies.
-- **🪟 Browser foreground focus** — Playwright navigation now activates Chrome at the OS level. No more invisible background tabs.
-- **🧠 Smart task handoff** — no more regex word lists. LLM plans multi-step browser tasks (e.g. "open youtube and play adele") instead of pattern matching.
-- **Multi-provider** — Anthropic, OpenAI, Groq, Together, DeepSeek, Kimi, Ollama, or any OpenAI-compatible endpoint
+- **🧠 Fluid task decomposition** — LLM reasons about what ANY app needs instead of matching hardcoded patterns.
+- **🩺 Interactive doctor** — scans all providers, detects GPU/VRAM, lets you pick TEXT and VISION LLMs.
+- **🖥️ Smart vision fallback** — remaining subtasks bundled and handed to vision when cheap layers fail midway.
+
+### v0.5.2 — Web Dashboard + Browser Foreground Focus
+
+- **🖥️ Web Dashboard** — real-time logs, approve/reject safety confirmations, kill switch. Dark theme, zero dependencies.
+- **🪟 Browser foreground focus** — Playwright activates Chrome at OS level. No more invisible background tabs.
+- **Multi-provider** — 7+ providers supported out of the box
 - **95% cheaper** — simple tasks run for $0 with local models
 - **Self-healing** — if a model fails, the pipeline adapts automatically
 
