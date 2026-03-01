@@ -131,11 +131,14 @@ const CHECKPOINT_TEMPLATES: Record<string, string[]> = {
   navigate: ['url_entered', 'page_loaded'],
   draw: ['tool_selected', 'drawing_started', 'drawing_complete'],
   file_save: ['save_triggered', 'path_entered', 'save_confirmed'],
+  multi_app: ['first_app_focused', 'first_app_action_done', 'content_copied', 'second_app_opened', 'content_pasted', 'result_visible'],
   app_interaction: ['app_focused', 'action_performed', 'result_visible'],
 };
 
 function detectTaskType(task: string): string {
   const lower = task.toLowerCase();
+  // Multi-app: task involves copying/moving between apps or mentions "then open" another app
+  if (/\b(copy.*paste|then open|switch to|move to|from.*to)\b/.test(lower) && /\b(open|app|chrome|edge|firefox|docs|word|notepad|excel)\b/.test(lower)) return 'multi_app';
   if (/\b(email|compose|send.*to|mail)\b/.test(lower)) return 'email';
   if (/\b(fill|form|register|sign.?up)\b/.test(lower)) return 'form';
   if (/\b(go to|navigate|open.*url|visit)\b/.test(lower)) return 'navigate';
@@ -276,6 +279,45 @@ function updateCheckpoints(tracker: CheckpointTracker, action: string, descripti
         break;
       case 'result_visible':
         if (lower.includes('success') || lower.includes('complete') || lower.includes('done') || lower.includes('finished')) {
+          cp.detected = true;
+          cp.timestamp = Date.now();
+        }
+        break;
+      // Multi-app checkpoints
+      case 'first_app_focused':
+        if (action === 'left_click' || (action === 'key' && (lower.includes('super') || lower.includes('tab')))) {
+          cp.detected = true;
+          cp.timestamp = Date.now();
+        }
+        break;
+      case 'first_app_action_done':
+        if (action === 'key' && (lower.includes('page_down') || lower.includes('pagedown') || lower.includes('space'))) {
+          cp.detected = true;
+          cp.timestamp = Date.now();
+        }
+        if (action === 'scroll') {
+          cp.detected = true;
+          cp.timestamp = Date.now();
+        }
+        break;
+      case 'content_copied':
+        if (action === 'key' && (lower.includes('ctrl+c') || lower.includes('cmd+c') || lower.includes('copy'))) {
+          cp.detected = true;
+          cp.timestamp = Date.now();
+        }
+        break;
+      case 'second_app_opened':
+        if (action === 'key' && (lower.includes('alt+tab') || lower.includes('super'))) {
+          cp.detected = true;
+          cp.timestamp = Date.now();
+        }
+        if (lower.includes('google docs') || lower.includes('new tab') || lower.includes('second app') || lower.includes('switch')) {
+          cp.detected = true;
+          cp.timestamp = Date.now();
+        }
+        break;
+      case 'content_pasted':
+        if (action === 'key' && (lower.includes('ctrl+v') || lower.includes('cmd+v') || lower.includes('paste'))) {
           cp.detected = true;
           cp.timestamp = Date.now();
         }

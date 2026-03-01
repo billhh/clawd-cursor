@@ -484,7 +484,8 @@ RULES:
 - If the task mentions a specific browser (Edge, Chrome, Firefox, Brave, Safari), use it
 - If no app needs opening, set app to null
 - contextHints: list relevant platforms/sites (e.g. "reddit", "twitter", "gmail") for shortcut matching
-- The "task" field should be what remains AFTER the app is opened and URL navigated
+- The "task" field MUST contain ALL remaining work after the FIRST app is opened and URL navigated
+- CRITICAL: If the command involves multiple apps (e.g. "copy from X then paste in Y"), the task field MUST include the full chain of remaining actions including switching to other apps
 - If the whole task is just "open X", task should be empty string
 
 Browser name mapping:
@@ -503,7 +504,8 @@ Examples:
 - "check my email in chrome" → {"app": "Google Chrome", "navigate": "gmail.com", "task": "check email", "contextHints": ["gmail"]}
 - "go to youtube and find a funny video" → {"app": "Microsoft Edge", "navigate": "youtube.com", "task": "find a funny video", "contextHints": ["youtube"]}
 - "scroll down" → {"app": null, "navigate": null, "task": "scroll down", "contextHints": []}
-- "open reddit on edge and scroll down through posts and interact with one" → {"app": "Microsoft Edge", "navigate": "reddit.com", "task": "scroll down through posts and interact with one", "contextHints": ["reddit"]}`;
+- "open reddit on edge and scroll down through posts and interact with one" → {"app": "Microsoft Edge", "navigate": "reddit.com", "task": "scroll down through posts and interact with one", "contextHints": ["reddit"]}
+- "open wikipedia on edge, copy a sentence, then paste it in google docs" → {"app": "Microsoft Edge", "navigate": "wikipedia.org", "task": "scroll through an article, copy an interesting sentence, then open Google Docs and paste it there", "contextHints": ["wikipedia", "google docs"]}`;
 
     try {
       console.log(`\n🧠 Pre-processing task with LLM...`);
