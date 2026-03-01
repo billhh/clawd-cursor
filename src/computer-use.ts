@@ -147,8 +147,38 @@ function detectTaskType(task: string): string {
   return 'app_interaction'; // generic fallback
 }
 
+function extractSecondAppHints(task: string): string[] {
+  const lower = task.toLowerCase();
+  const knownApps = [
+    'notepad', 'google docs', 'docs', 'word', 'excel', 'powerpoint', 'paint',
+    'chrome', 'edge', 'firefox', 'safari', 'terminal', 'cmd', 'powershell',
+    'vscode', 'code', 'slack', 'teams', 'discord',
+  ];
+  const markers = ['then open', 'switch to', 'paste into', 'into', 'in'];
+  for (const marker of markers) {
+    const idx = lower.indexOf(marker);
+    if (idx >= 0) {
+      const suffix = lower.slice(idx + marker.length);
+      const markerHits = knownApps.filter(app => suffix.includes(app));
+      if (markerHits.length > 0) return Array.from(new Set(markerHits));
+    }
+  }
+
+  const appWithPos = knownApps
+    .map(app => ({ app, pos: lower.indexOf(app) }))
+    .filter(v => v.pos >= 0)
+    .sort((a, b) => a.pos - b.pos);
+  if (appWithPos.length >= 2) {
+    return [appWithPos[appWithPos.length - 1].app];
+  }
+
+  return [];
+}
+
 function updateCheckpoints(tracker: CheckpointTracker, action: string, description: string, claudeText: string): void {
-  const lower = (description + ' ' + claudeText).toLowerCase();
+  const descriptionLower = description.toLowerCase();
+  const claudeLower = claudeText.toLowerCase();
+  const lower = `${descriptionLower} ${claudeLower}`;
   
   for (const cp of tracker.checkpoints) {
     if (cp.detected) continue;
@@ -278,14 +308,17 @@ function updateCheckpoints(tracker: CheckpointTracker, action: string, descripti
         }
         break;
       case 'result_visible':
-        if (lower.includes('success') || lower.includes('complete') || lower.includes('done') || lower.includes('finished')) {
+        if (
+          (claudeLower.includes('pasted') || claudeLower.includes('paste')) &&
+          (claudeLower.includes('success') || claudeLower.includes('visible') || claudeLower.includes('complete') || claudeLower.includes('done'))
+        ) {
           cp.detected = true;
           cp.timestamp = Date.now();
         }
         break;
       // Multi-app checkpoints
       case 'first_app_focused':
-        if (action === 'left_click' || (action === 'key' && (lower.includes('super') || lower.includes('tab')))) {
+        if (action === 'screenshot') {
           cp.detected = true;
           cp.timestamp = Date.now();
         }
@@ -301,23 +334,23 @@ function updateCheckpoints(tracker: CheckpointTracker, action: string, descripti
         }
         break;
       case 'content_copied':
-        if (action === 'key' && (lower.includes('ctrl+c') || lower.includes('cmd+c') || lower.includes('copy'))) {
+        if (action === 'key' && (descriptionLower.includes('ctrl+c') || descriptionLower.includes('cmd+c'))) {
           cp.detected = true;
           cp.timestamp = Date.now();
         }
         break;
       case 'second_app_opened':
-        if (action === 'key' && (lower.includes('alt+tab') || lower.includes('super'))) {
-          cp.detected = true;
-          cp.timestamp = Date.now();
-        }
-        if (lower.includes('google docs') || lower.includes('new tab') || lower.includes('second app') || lower.includes('switch')) {
+        if (
+          action === 'key' &&
+          (descriptionLower.includes('alt+tab') || descriptionLower.includes('super')) &&
+          !!tracker.secondAppHints?.some(hint => claudeLower.includes(hint))
+        ) {
           cp.detected = true;
           cp.timestamp = Date.now();
         }
         break;
       case 'content_pasted':
-        if (action === 'key' && (lower.includes('ctrl+v') || lower.includes('cmd+v') || lower.includes('paste'))) {
+        if (action === 'key' && (descriptionLower.includes('ctrl+v') || descriptionLower.includes('cmd+v'))) {
           cp.detected = true;
           cp.timestamp = Date.now();
         }
@@ -358,6 +391,7 @@ interface TaskCheckpoint {
 
 interface CheckpointTracker {
   taskType: string;
+  secondAppHints?: string[];
   checkpoints: TaskCheckpoint[];
   isComplete(): boolean;
   update(action: string, description: string, claudeText: string): void;
@@ -440,6 +474,7 @@ export class ComputerUseBrain {
     const checkpointNames = CHECKPOINT_TEMPLATES[taskType] || CHECKPOINT_TEMPLATES['app_interaction'];
     const tracker: CheckpointTracker = {
       taskType,
+      secondAppHints: extractSecondAppHints(subtask),
       checkpoints: checkpointNames.map(name => ({ name, detected: false })),
       isComplete() {
         return this.checkpoints.every(cp => cp.detected);
@@ -500,24 +535,8 @@ export class ComputerUseBrain {
         }
       }
 
-      // If end_turn → Claude thinks it's done. Check checkpoints first.
+      // If end_turn → Claude thinks it's done. Verify with checkpoints.
       if (response.stop_reason === 'end_turn') {
-        const completedCount = tracker.checkpoints.filter(c => c.detected).length;
-        const totalCount = tracker.checkpoints.length;
-        const completionRatio = completedCount / totalCount;
-        
-        // If Claude says done + ≥90% checkpoints met, trust it and stop
-        if (completionRatio >= 0.90) {
-          console.log(`   ✅ Claude says done + ${Math.round(completionRatio * 100)}% checkpoints met — accepting completion`);
-          steps.push({
-            action: 'done',
-            description: `Computer Use completed: "${subtask}" (${completedCount}/${totalCount} checkpoints)`,
-            success: true,
-            timestamp: Date.now(),
-          });
-          return { success: true, steps, llmCalls };
-        }
-        
         // Skip verification for visual/loop tasks — trust Claude's judgment,
         // avoid the extra screenshot + API call overhead
         const skipVerify = skipA11yCompletely || /\b(draw|paint|sketch|doodle|color|design)\b/i.test(subtask);
@@ -791,23 +810,8 @@ export class ComputerUseBrain {
       for (let ti = 0; ti < toolUseBlocks.length; ti++) {
         const toolUse = toolUseBlocks[ti];
         const { action } = toolUse.input;
-        if (action !== 'screenshot') {
           const stepDesc = steps[steps.length - toolUseBlocks.length + ti]?.description || '';
           tracker.update(action, stepDesc, claudeText);
-        }
-      }
-
-      // Check for checkpoint-based completion
-      if (tracker.isComplete()) {
-        console.log(`   ✅ All checkpoints met — task complete`);
-        console.log(`   📋 Checkpoints: ${tracker.checkpoints.map(c => `${c.detected ? '✅' : '❌'} ${c.name}`).join(', ')}`);
-        steps.push({
-          action: 'done',
-          description: `All checkpoints complete for ${taskType} task: "${subtask}"`,
-          success: true,
-          timestamp: Date.now(),
-        });
-        return { success: true, steps, llmCalls };
       }
 
       // Send tool results back
@@ -1193,3 +1197,4 @@ export class ComputerUseBrain {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
+
